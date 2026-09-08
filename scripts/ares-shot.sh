@@ -21,7 +21,8 @@ JSEOF
 
 pkill -x ares 2>/dev/null || true
 sleep 0.5
-open -a ares --args --system "Nintendo 64" "$ROM_ABS"
+# Input/Defocus=Allow keeps emulation running when the window is not frontmost.
+open -a ares --args --system "Nintendo 64" --setting Input/Defocus=Allow "$ROM_ABS"
 START=$(date +%s)
 for SEC in "$@"; do
   while [ $(( $(date +%s) - START )) -lt "$SEC" ]; do sleep 0.2; done
