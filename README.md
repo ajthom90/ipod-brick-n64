@@ -11,3 +11,4 @@ The classic iPod "Brick" game (Apple's Breakout clone) rebuilt for the Nintendo 
 ## Develop
 
     make test         # host unit tests for the game core (clang, no N64 toolchain needed)
+    make frames       # dumps autoplay frames to build/frames/*.png for visual checks
