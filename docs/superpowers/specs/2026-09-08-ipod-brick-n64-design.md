@@ -116,6 +116,9 @@ void brick_init(brick_game_t *g);                 /* zero everything, state TITL
 void brick_new_game(brick_game_t *g);             /* keeps high_score; lives 3, level 1, SERVE */
 void brick_update(brick_game_t *g, const brick_input_t *in); /* advance exactly one tick */
 void brick_autoplay_input(const brick_game_t *g, brick_input_t *in); /* AI paddle for tests/screenshots */
+void brick_on_ball_lost(brick_game_t *g);         /* transition helper, public for tests and tools */
+void brick_on_level_clear(brick_game_t *g);       /* transition helper, public for tests and tools */
+bool brick_rects_overlap(brick_rect_t a, brick_rect_t b);
 
 brick_rect_t brick_cell_rect(int row, int col);
 brick_rect_t brick_paddle_rect(const brick_game_t *g);
@@ -149,7 +152,7 @@ Collisions, in order, per axis pass:
 
 Paddle bounce table (7 zones across the paddle, chosen by the ball's center x; zone 0 is the left edge): angles from vertical -60, -40, -20, ±8, +20, +40, +60 degrees. Unit vectors in Q8.8 (sin, cos): 60° (222, 128), 40° (165, 196), 20° (88, 241), 8° (36, 253). New velocity: `vx = sign * (speed * sin) >> 8`, `vy = -((speed * cos) >> 8)`. Zone 3 keeps the sign of the incoming `vx` (or +1 if it was zero). Speed magnitude therefore stays constant within a level.
 
-Autoplay (`brick_autoplay_input`): TITLE → `confirm`; SERVE → `launch`; GAMEOVER → nothing (stay on the screen so it can be captured). In PLAY during level 1 the paddle steers so the ball lands off-center and gets sent toward the far side of the field: the target x is `ball_center_x - (5 * BRICK_PADDLE_W) / 7` when the ball is in the left half of the playfield and `ball_center_x - (2 * BRICK_PADDLE_W) / 7` in the right half; `paddle_axis` is +256 or -256 toward the target and 0 within 2 px of it. From level 2 on the autoplay holds the paddle still, so the game deliberately loses its lives and reaches GAMEOVER within about 15 seconds of play, giving an unattended emulator run every screen except PAUSE. A unit test drives a new game with autoplay and asserts that level 2 is reached within 30,000 ticks and GAMEOVER within 60,000 ticks, proving a level is clearable, that speed ramps, and that lives run out.
+Autoplay (`brick_autoplay_input`): TITLE → `confirm`; SERVE → `launch`; GAMEOVER → nothing (stay on the screen so it can be captured). In PLAY during level 1 the paddle steers so the ball lands off-center and gets sent toward the far side of the field, rotating through three bounce zones so a deterministic game cannot settle into a loop that misses bricks: with `k = (ticks / 300) % 3`, the target zone is `4 + k` when the ball center is in the left half of the playfield and `2 - k` in the right half; the target paddle x is `ball_center_x - (zone * BRICK_PADDLE_W) / 7 - BRICK_PADDLE_W / 14`; `paddle_axis` is +256 or -256 toward the target and 0 within 2 px of it. From level 2 on the autoplay holds the paddle still, so the game deliberately loses its lives and reaches GAMEOVER within about 15 seconds of play, giving an unattended emulator run every screen except PAUSE. A unit test drives a new game with autoplay and asserts that level 2 is reached within 30,000 ticks and GAMEOVER within 60,000 ticks, proving a level is clearable, that speed ramps, and that lives run out.
 
 ### 3.3 Input mapping (adapter)
 
@@ -161,12 +164,12 @@ Autoplay (`brick_autoplay_input`): TITLE → `confirm`; SERVE → `launch`; GAME
 | (Menu) | Start | `pause` |
 | — | B on title / game over | `confirm` |
 
-Stick: `joypad_get_inputs(JOYPAD_PORT_1).stick_x` is an `int8_t`, about -85..+85 on a healthy stick. Dead zone ±8. `axis = clamp(stick_x, -80, 80) * 256 / 80`. Edge buttons come from `joypad_get_buttons_pressed`. The adapter calls `joypad_poll` once per rendered frame and reuses the same `brick_input_t` for every catch-up tick, so a single press is never applied twice.
+Stick: `joypad_get_inputs(JOYPAD_PORT_1).stick_x` is an `int8_t`, about -85..+85 on a healthy stick. Dead zone ±8. `axis = clamp(stick_x, -80, 80) * 256 / 80`. Edge buttons come from `joypad_get_buttons_pressed`; the D-pad and C-button levels from `joypad_get_buttons`. The adapter calls `joypad_poll` once per rendered frame and reuses the same `brick_input_t` for every catch-up tick, so a single press is never applied twice.
 
 ### 3.4 Rendering (adapter)
 
 - `display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE)`. Three buffers so `rdpq_detach_show` never stalls the CPU.
-- `rdpq_init()`; in debug builds (`#ifndef NDEBUG`) `rdpq_debug_start()` right after it.
+- `rdpq_init()`; in debug builds (`make rom DEBUG=1`, which defines `BRICK_DEBUG`) `rdpq_debug_start()` right after it.
 - Font: `rdpq_text_register_font(1, rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO))` plus one `rdpq_font_style` with the text color. Font id 0 is reserved by libdragon.
 - Per frame: `display_get` → `rdpq_attach(fb, NULL)` → `rdpq_set_mode_fill(bg)` → `rdpq_fill_rectangle(0,0,320,240)` → for each present cell, `rdpq_set_fill_color` when the row changes and `rdpq_fill_rectangle(cell)` → paddle and ball rectangles → `rdpq_set_mode_standard()` → `rdpq_text_printf` for HUD and overlays → `rdpq_detach_show()`.
 - `rdpq_fill_rectangle` bounds are exclusive on the right and bottom, matching `brick_rect_t`.
