@@ -45,7 +45,7 @@ src/games/parachute.c/.h
 src/games/g2048.c/.h
 src/games/registry.c/.h   const game_desc_t *const GAMES[]; GAME_COUNT
 src/synth.c/.h     4-channel chiptune synthesizer and sound-effect player (pure C, integer math)
-src/music.c/.h     pattern notation parser and sequencer driving the synth; defines music_track_id_t (MUSIC_MENU, MUSIC_BRICK, MUSIC_BLOCKS, MUSIC_SNAKE, MUSIC_PONG, MUSIC_PARACHUTE, MUSIC_2048)
+src/music.c/.h     pattern notation parser and sequencer driving the synth (music_track_id_t itself lives in game.h so games can name their track without depending on the synth)
 src/music_data.c   the seven tunes as notation strings
 src/sfx.h          sfx_id_t, sfx_queue_t
 src/settings.c/.h  settings screen (framework screen) and settings_t
@@ -207,7 +207,7 @@ Rules, layout, physics, and tests as in v1. Changes: input comes from `input_t` 
 
 ### 4.3 Snake
 
-- Grid: 36 x 25 cells of 8 px at x 16..304, y 24..224. Snake body `2E6DB4`, head `1A1A1A`, food `C4472A`, 1 px inner gap so cells read as segments.
+- Grid: 36 x 24 cells of 8 px at x 16..304, y 32..224 (below the HUD baseline). Snake body `2E6DB4`, head `1A1A1A`, food `C4472A`, 1 px inner gap so cells read as segments.
 - Start: length 4 at the center heading right; the snake advances one cell every `period` ticks where `period` starts at 8 and drops by 1 for every 5 foods eaten, minimum 3. The first move waits for A ("PRESS A" on the title).
 - Input: `dpad_x/y` or `stick_x/y` beyond ±128 set the pending direction; reversing into the body is ignored; the pending direction applies at the next step (one turn per step).
 - Food: placed with the PRNG in a random empty cell. Eating grows the snake by one and scores 1.
@@ -229,9 +229,9 @@ Rules, layout, physics, and tests as in v1. Changes: input comes from `input_t` 
 
 - Turret: base rectangle 20 x 8 at x 150..170, y 220..228; barrel drawn as three 4 x 4 squares stepping outward along the aim direction from the base center (160, 220). Aim angle in whole degrees from -75 (left) to +75 (right), changed by `stick_x` (up to 3 degrees per tick) or `dpad_x` (2 degrees per tick). A 31-entry Q8.8 table of (sin, cos) for -75..+75 in 5-degree steps provides direction vectors; the angle is rounded to the nearest 5 degrees for drawing and shooting.
 - Bullets: 3 x 3 dark squares, 4 px per tick along the aim direction, at most 4 in flight; `a` fires (edge) and holding A fires every 12 ticks; each shot costs 1 point (score never below 0).
-- Helicopters: 16 x 6 body plus a 12 x 2 rotor above, color `2C2C2C`, entering from a random side at a random y in 30..90, moving 1 px per tick; one spawns every `max(60, 150 - score)` ticks. While over the playfield each helicopter drops up to 2 paratroopers at random ticks.
+- Helicopters: 16 x 6 body plus a 12 x 2 rotor above, color `2C2C2C`, entering from a random side at a random y in 40..90, moving 1 px per tick; one spawns every `max(60, 150 - score)` ticks. While over the playfield each helicopter drops up to 2 paratroopers at random ticks.
 - Paratroopers: body 6 x 8 in `2E6DB4` with a chute 12 x 6 in `E07A1F` above; descend 1 px per tick with a chute and 4 px per tick without. A bullet hitting the body kills it (+2). A bullet hitting the chute removes the chute; a chuteless trooper that lands dies (+1) and kills any landed trooper it hits (+2 each).
-- Landing: a trooper whose feet reach y 212 lands; x < 150 counts for the left side, x > 170 for the right, otherwise it lands on the turret and the game ends. Four landed on one side ends the game. Landed troopers stay drawn.
+- Landing: a trooper whose body bottom reaches the playfield bottom (y 228) lands and stands at y 220..228; x < 150 counts for the left side, x > 170 for the right, otherwise it lands on the turret and the game ends. Four landed on one side ends the game. Landed troopers stay drawn.
 - Scoring: +2 per helicopter or trooper shot, -1 per shot. HUD: "SCORE n" left, "HIGH n" right.
 - Sound effects: `SFX_SHOT` per shot, `SFX_EXPLODE` per kill, `SFX_GAME_OVER`.
 - Autoplay: aim at the lowest paratrooper with a chute, else the nearest helicopter, and fire when within 5 degrees of the target angle.
