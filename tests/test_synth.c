@@ -39,7 +39,7 @@ static void test_a4_square_zero_crossings_and_peak(void) {
         }
     }
     CHECK(crossings >= 860 && crossings <= 900);
-    CHECK(peak > 8000);
+    CHECK(peak > 4000);
 }
 
 static void test_volume_zero_is_silence(void) {

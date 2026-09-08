@@ -1,7 +1,7 @@
 #include "synth.h"
 #include <string.h>
 
-enum { ENV_FULL = 65536, MIX_SCALE = 160, SFX_AMP = 8000 };
+enum { ENV_FULL = 65536, MIX_SCALE = 110, SFX_AMP = 8000 };
 enum { NOTE_K = 250, NOTE_S = 251, NOTE_H = 252, NOTE_O = 253 };
 
 static uint32_t duty_thresh(uint8_t duty) {
