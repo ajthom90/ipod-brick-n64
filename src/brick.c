@@ -236,9 +236,24 @@ void brick_autoplay_input(const brick_game_t *g, brick_input_t *in) {
     case BRICK_ST_PLAY:
         if (g->level >= 2) break;
         {
-            int k = (int)((g->ticks / 300) % 3);
             int cx = (g->ball_x >> 8) + BRICK_BALL_SIZE / 2;
-            int zt = (cx < (BRICK_PLAY_X0 + BRICK_PLAY_X1) / 2) ? 4 + k : 2 - k;
+            /* Aim at the remaining brick nearest to the ball horizontally,
+             * scanning from the bottom row so reachable bricks win ties. */
+            int best = -1, best_dx = 0;
+            for (int r = BRICK_ROWS - 1; r >= 0; r--) {
+                for (int c = 0; c < BRICK_COLS; c++) {
+                    if (!g->cells[r][c]) continue;
+                    brick_rect_t cell = brick_cell_rect(r, c);
+                    int dx = (cell.x0 + cell.x1) / 2 - cx;
+                    int adx = dx < 0 ? -dx : dx;
+                    if (best < 0 || adx < best) { best = adx; best_dx = dx; }
+                }
+            }
+            int k = (int)((g->ticks / 300) % 3);
+            int zt;
+            if (best_dx > 8) zt = 4 + k;          /* send it right: zones 4,5,6 */
+            else if (best_dx < -8) zt = 2 - k;    /* send it left: zones 2,1,0 */
+            else zt = 3;
             int tx = cx - (zt * BRICK_PADDLE_W) / 7 - BRICK_PADDLE_W / 14;
             if (g->paddle_x < tx - 2) in->paddle_axis = 256;
             else if (g->paddle_x > tx + 2) in->paddle_axis = -256;

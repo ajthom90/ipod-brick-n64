@@ -334,7 +334,7 @@ static void test_autoplay_clears_level_and_ends(void) {
     brick_game_t g; brick_init(&g);
     brick_input_t in;
     int t = 0;
-    while (g.level < 2 && t < 30000) { brick_autoplay_input(&g, &in); brick_update(&g, &in); t++; }
+    while (g.level < 2 && t < 15000) { brick_autoplay_input(&g, &in); brick_update(&g, &in); t++; }
     CHECK(g.level == 2);
     printf("\n    level 2 after %d ticks (%d s)\n%-44s", t, t / 60, "");
     while (g.state != BRICK_ST_GAMEOVER && t < 60000) { brick_autoplay_input(&g, &in); brick_update(&g, &in); t++; }

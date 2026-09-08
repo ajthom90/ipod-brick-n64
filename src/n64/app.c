@@ -108,13 +108,14 @@ int main(void) {
         uint64_t now = get_ticks();
         acc += now - prev;
         prev = now;
-#ifdef BRICK_AUTOPLAY
-        brick_autoplay_input(&game, &in);
-#else
+#ifndef BRICK_AUTOPLAY
         read_input(&in);
 #endif
         int steps = 0;
         while (acc >= dt && steps < BRICK_CATCHUP_MAX) {
+#ifdef BRICK_AUTOPLAY
+            brick_autoplay_input(&game, &in);
+#endif
             brick_update(&game, &in);
             in.launch = in.confirm = in.pause = false;
             acc -= dt;
