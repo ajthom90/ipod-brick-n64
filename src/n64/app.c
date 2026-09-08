@@ -1,7 +1,8 @@
 #include <libdragon.h>
 #include "../brick.h"
 
-#define FONT_ID 1
+#define FONT_HUD 1
+#define FONT_BIG 2
 #define STICK_DEAD_ZONE 8
 #define STICK_FULL 80
 
@@ -64,19 +65,19 @@ static void render(const brick_game_t *g) {
     rdpq_textparms_t right = { .width = BRICK_PLAY_X1, .align = ALIGN_RIGHT };
 
     if (g->state == BRICK_ST_TITLE) {
-        rdpq_text_printf(&center, FONT_ID, 0, 100, "BRICK");
-        rdpq_text_printf(&center, FONT_ID, 0, 130, "HIGH SCORE %d", g->high_score);
-        rdpq_text_printf(&center, FONT_ID, 0, 160, "PRESS A");
+        rdpq_text_printf(&center, FONT_BIG, 0, 100, "BRICK");
+        rdpq_text_printf(&center, FONT_BIG, 0, 130, "HIGH SCORE %d", g->high_score);
+        rdpq_text_printf(&center, FONT_BIG, 0, 160, "PRESS A");
     } else {
-        rdpq_text_printf(&left, FONT_ID, BRICK_PLAY_X0, 16, "SCORE %d", g->score);
-        rdpq_text_printf(&center, FONT_ID, 0, 16, "LIVES %d", g->lives);
-        rdpq_text_printf(&right, FONT_ID, 0, 16, "LV %d", g->level);
+        rdpq_text_printf(&left, FONT_HUD, BRICK_PLAY_X0, 26, "SCORE %d", g->score);
+        rdpq_text_printf(&center, FONT_HUD, 0, 26, "LIVES %d", g->lives);
+        rdpq_text_printf(&right, FONT_HUD, 0, 26, "LV %d", g->level);
         if (g->state == BRICK_ST_PAUSE) {
-            rdpq_text_printf(&center, FONT_ID, 0, 160, "PAUSED");
+            rdpq_text_printf(&center, FONT_BIG, 0, 160, "PAUSED");
         } else if (g->state == BRICK_ST_GAMEOVER) {
-            rdpq_text_printf(&center, FONT_ID, 0, 150, "GAME OVER");
-            rdpq_text_printf(&center, FONT_ID, 0, 170, "HIGH SCORE %d", g->high_score);
-            rdpq_text_printf(&center, FONT_ID, 0, 190, "PRESS A");
+            rdpq_text_printf(&center, FONT_BIG, 0, 140, "GAME OVER");
+            rdpq_text_printf(&center, FONT_BIG, 0, 168, "HIGH SCORE %d", g->high_score);
+            rdpq_text_printf(&center, FONT_BIG, 0, 196, "PRESS A");
         }
     }
 
@@ -84,6 +85,8 @@ static void render(const brick_game_t *g) {
 }
 
 int main(void) {
+    dfs_init(DFS_DEFAULT_LOCATION);
+    /* FILTERS_DISABLED asserts at 320x240 16 bpp (hardware bug, libdragon display.c); resampling stays on. */
     display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE);
     rdpq_init();
 #ifdef BRICK_DEBUG
@@ -91,9 +94,12 @@ int main(void) {
 #endif
     joypad_init();
 
-    rdpq_font_t *font = rdpq_font_load_builtin(FONT_BUILTIN_DEBUG_MONO);
-    rdpq_font_style(font, 0, &(rdpq_fontstyle_t){ .color = rgb(BRICK_COLOR_TEXT) });
-    rdpq_text_register_font(FONT_ID, font);
+    rdpq_font_t *hud = rdpq_font_load("rom:/hud.font64");
+    rdpq_font_t *big = rdpq_font_load("rom:/big.font64");
+    rdpq_font_style(hud, 0, &(rdpq_fontstyle_t){ .color = rgb(BRICK_COLOR_TEXT) });
+    rdpq_font_style(big, 0, &(rdpq_fontstyle_t){ .color = rgb(BRICK_COLOR_TEXT) });
+    rdpq_text_register_font(FONT_HUD, hud);
+    rdpq_text_register_font(FONT_BIG, big);
 
     brick_game_t game;
     brick_init(&game);

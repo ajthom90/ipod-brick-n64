@@ -44,7 +44,7 @@ shots:
 	scripts/ares-shot.sh brick-autoplay.z64 build/shots 4 8 15
 
 clean:
-	$(RM) -r build *.z64
+	$(RM) -r build filesystem *.z64
 
 ifdef N64_INST
 include $(N64_INST)/include/n64.mk
@@ -56,6 +56,20 @@ N64_CFLAGS += -DBRICK_DEBUG
 endif
 C_FILES := src/brick.c src/n64/app.c
 OBJS := $(addprefix $(BUILD_DIR)/,$(C_FILES:.c=.o))
+FONT_TTF := assets/Inter-Bold.ttf
+
+filesystem/hud.font64: $(FONT_TTF)
+	@mkdir -p $(BUILD_DIR)/font-hud filesystem
+	$(N64_MKFONT) --size 12 --display 320x240 -o $(BUILD_DIR)/font-hud "$<"
+	cp $(BUILD_DIR)/font-hud/Inter-Bold.font64 $@
+
+filesystem/big.font64: $(FONT_TTF)
+	@mkdir -p $(BUILD_DIR)/font-big filesystem
+	$(N64_MKFONT) --size 22 --display 320x240 -o $(BUILD_DIR)/font-big "$<"
+	cp $(BUILD_DIR)/font-big/Inter-Bold.font64 $@
+
+$(BUILD_DIR)/$(ROMNAME).dfs: filesystem/hud.font64 filesystem/big.font64
+$(ROMNAME).z64: $(BUILD_DIR)/$(ROMNAME).dfs
 $(BUILD_DIR)/$(ROMNAME).elf: $(OBJS)
 $(ROMNAME).z64: N64_ROM_TITLE = "Brick"
 .PHONY: rom-in-container

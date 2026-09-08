@@ -1,6 +1,7 @@
 # Brick for Nintendo 64
 
 The classic iPod "Brick" game (Apple's Breakout clone) rebuilt for the Nintendo 64 with [libdragon](https://github.com/DragonMinded/libdragon). Runs in the [ares](https://ares-emu.net) emulator.
+Text is set in [Inter](https://rsms.me/inter/) (SIL Open Font License 1.1, see assets/LICENSE-Inter.txt).
 
 ## Build
 
