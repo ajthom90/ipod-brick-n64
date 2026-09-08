@@ -10,7 +10,7 @@ GAME      ?= brick
 CORE_SRCS := $(wildcard src/*.c) $(wildcard src/games/*.c)
 TESTS     := $(patsubst tests/%.c,build/host/%,$(wildcard tests/test_*.c))
 
-.PHONY: test frames image rom rom-autoplay run shots clean
+.PHONY: test frames music image rom rom-autoplay run shots clean
 
 test: $(TESTS)
 	@set -e; for t in $(TESTS); do echo "== $$t"; $$t; done
@@ -28,6 +28,15 @@ frames: build/host/framedump
 build/host/framedump: tools/framedump.c $(CORE_SRCS) $(wildcard src/*.h src/games/*.h)
 	mkdir -p build/host
 	$(HOST_CC) $(HOST_CFLAGS) -o $@ tools/framedump.c $(CORE_SRCS)
+
+music: build/host/musicdump
+	mkdir -p build/music
+	./build/host/musicdump
+	@echo "afplay build/music/menu.wav"
+
+build/host/musicdump: tools/musicdump.c src/synth.c src/music.c src/music_data.c src/synth.h src/music.h
+	mkdir -p build/host
+	$(HOST_CC) $(HOST_CFLAGS) -o $@ tools/musicdump.c src/synth.c src/music.c src/music_data.c
 
 image:
 	docker build -t $(IMAGE) .
