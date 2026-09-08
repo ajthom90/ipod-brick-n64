@@ -84,6 +84,7 @@ filesystem/big.font64: $(FONT_TTF)
 $(BUILD_DIR)/$(ROMNAME).dfs: filesystem/hud.font64 filesystem/big.font64
 $(ROMNAME).z64: $(BUILD_DIR)/$(ROMNAME).dfs
 $(BUILD_DIR)/$(ROMNAME).elf: $(OBJS)
+N64_ROM_SAVETYPE = eeprom4k
 $(ROMNAME).z64: N64_ROM_TITLE = "Games"
 .PHONY: rom-in-container
 rom-in-container: $(ROMNAME).z64

@@ -98,6 +98,21 @@ static int dump_menu(const char *dir) {
     return 0;
 }
 
+static int dump_settings(const char *dir) {
+    app_t app;
+    app_init(&app, false, 0);
+    input_t in[GAME_MAX_PLAYERS];
+    memset(in, 0, sizeof in);
+    in[0].dpad_y = -1;
+    app_update(&app, in, false, 0x1234567u);
+    memset(in, 0, sizeof in);
+    in[0].a = true;
+    app_update(&app, in, false, 0x1234567u);
+    app_render(&app, &host_draw);
+    save(dir, "frame-0000.ppm", 0, 0);
+    return 0;
+}
+
 static int dump_pause(const char *dir) {
     app_t app;
     app_init(&app, false, 0);
@@ -120,12 +135,13 @@ static int dump_pause(const char *dir) {
 
 int main(int argc, char **argv) {
     if (argc != 3) {
-        fprintf(stderr, "usage: framedump <game-name|menu|pause> <outdir>\n");
+        fprintf(stderr, "usage: framedump <game-name|menu|pause|settings> <outdir>\n");
         return 2;
     }
     const char *dir = argv[2];
     if (strcmp(argv[1], "menu") == 0) return dump_menu(dir);
     if (strcmp(argv[1], "pause") == 0) return dump_pause(dir);
+    if (strcmp(argv[1], "settings") == 0) return dump_settings(dir);
     int gi = game_index_by_name(argv[1]);
     if (gi < 0) {
         fprintf(stderr, "unknown game: %s\n", argv[1]);

@@ -159,11 +159,73 @@ static void test_settings_placeholder(void) {
     app_update(&a, in, false, 1);
     CHECK(a.screen == APP_SETTINGS);
     CHECK(app_track(&a) == MUSIC_MENU);
+    CHECK(!a.settings_dirty);
+    CHECK(a.settings.volume == 7);
+    drain_sfx(&a);
 
-    /* A on BACK returns to the menu. */
+    /* Down to SOUND, release, down to VOLUME. */
+    zero_in(in);
+    in[0].dpad_y = -1;
+    app_update(&a, in, false, 1);
+    zero_in(in);
+    app_update(&a, in, false, 1);
+    in[0].dpad_y = -1;
+    app_update(&a, in, false, 1);
+    CHECK(a.settings_screen.row == 2);
+    drain_sfx(&a);
+
+    /* A cycles volume 7 -> 8 and marks settings dirty. */
+    zero_in(in);
+    in[0].a = true;
+    app_update(&a, in, false, 1);
+    CHECK(a.settings.volume == 8);
+    CHECK(a.settings_dirty);
+    drain_sfx(&a);
+
+    /* Down to BACK, A returns to the menu; dirty flag stays set. */
+    zero_in(in);
+    in[0].dpad_y = -1;
+    app_update(&a, in, false, 1);
+    CHECK(a.settings_screen.row == 3);
+    zero_in(in);
+    in[0].a = true;
     app_update(&a, in, false, 1);
     CHECK(a.screen == APP_MENU);
     CHECK(a.menu_row == GAME_COUNT);
+    CHECK(a.settings_dirty);
+    CHECK(a.settings.volume == 8);
+}
+
+static void test_high_scores_after_game_over(void) {
+    app_t a;
+    app_init(&a, true, 0);
+    input_t in[GAME_MAX_PLAYERS];
+    int t;
+    for (t = 0; t < 60000; t++) {
+        zero_in(in);
+        app_update(&a, in, false, 1);
+        if (GAME_BRICK.is_over(GAME_BRICK.state) && a.high_score_dirty) break;
+    }
+    CHECK(GAME_BRICK.is_over(GAME_BRICK.state));
+    int32_t scores[SAVE_MAX_GAMES];
+    app_high_scores(&a, scores);
+    CHECK(scores[0] == (int32_t)GAME_BRICK.get_high_score(GAME_BRICK.state));
+    CHECK(scores[0] > 0);
+    for (int i = 1; i < SAVE_MAX_GAMES; i++) CHECK(scores[i] == 0);
+}
+
+static void test_apply_save_restores_high_score(void) {
+    app_t a;
+    app_init(&a, false, 0);
+    save_t s;
+    save_defaults(&s);
+    s.high_scores[0] = 500;
+    s.settings.volume = 3;
+    s.settings.music_on = false;
+    app_apply_save(&a, &s);
+    CHECK(GAME_BRICK.get_high_score(GAME_BRICK.state) == 500);
+    CHECK(a.settings.volume == 3);
+    CHECK(!a.settings.music_on);
 }
 
 static void test_autoplay_boots_into_game(void) {
@@ -235,6 +297,8 @@ int main(void) {
     RUN(test_a_launches_brick);
     RUN(test_pause_menu);
     RUN(test_settings_placeholder);
+    RUN(test_high_scores_after_game_over);
+    RUN(test_apply_save_restores_high_score);
     RUN(test_autoplay_boots_into_game);
     RUN(test_game_over_sets_high_score_dirty_once);
     RUN(test_next_sfx_framework_then_game);

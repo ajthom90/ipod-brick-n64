@@ -71,11 +71,4 @@ void menu_draw_pause(const draw_t *d, int selected) {
     }
 }
 
-void menu_draw_settings(const draw_t *d) {
-    draw_rect(d, 0, 0, SCREEN_W, SCREEN_H, COLOR_BG);
-    draw_text(d, DRAW_FONT_BIG, DRAW_LEFT, 16, 30, DRAW_TEXT_DARK, "SETTINGS");
-    draw_rect(d, 16, 36, 304, 37, COLOR_DARK);
-    int base = 86;
-    draw_rect(d, 16, base - 20, 304, base + 6, COLOR_BLUE);
-    draw_text(d, DRAW_FONT_BIG, DRAW_LEFT, 24, base, DRAW_TEXT_LIGHT, "BACK");
-}
+

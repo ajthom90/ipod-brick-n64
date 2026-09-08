@@ -11,6 +11,5 @@ bool menu_apply_nav(int *row, int row_min, int row_max,
 
 void menu_draw_games(const draw_t *d, int selected);
 void menu_draw_pause(const draw_t *d, int selected);
-void menu_draw_settings(const draw_t *d);
 
 #endif

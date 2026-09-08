@@ -45,6 +45,7 @@ static void update_menu(app_t *a, const input_t *in, uint32_t seed) {
         sfx_push(&a->sfx, SFX_MENU_SELECT);
         if (a->menu_row >= GAME_COUNT) {
             a->screen = APP_SETTINGS;
+            settings_screen_init(&a->settings_screen, &a->settings);
             reset_nav(a);
         } else {
             a->game_index = a->menu_row;
@@ -54,8 +55,12 @@ static void update_menu(app_t *a, const input_t *in, uint32_t seed) {
 }
 
 static void update_settings(app_t *a, const input_t *in) {
-    if (in->a || in->b) {
-        sfx_push(&a->sfx, SFX_MENU_SELECT);
+    bool close = settings_screen_update(&a->settings_screen, in, &a->sfx);
+    if (a->settings_screen.changed) {
+        a->settings = a->settings_screen.values;
+        a->settings_dirty = true;
+    }
+    if (close) {
         a->screen = APP_MENU;
         reset_nav(a);
     }
@@ -85,6 +90,7 @@ static void update_pause(app_t *a, const input_t *in, bool start_pressed) {
 void app_init(app_t *a, bool autoplay, int autoplay_game) {
     memset(a, 0, sizeof *a);
     a->autoplay = autoplay;
+    settings_defaults(&a->settings);
     for (int i = 0; i < GAME_COUNT; i++) {
         GAMES[i]->init(GAMES[i]->state);
     }
@@ -93,7 +99,7 @@ void app_init(app_t *a, bool autoplay, int autoplay_game) {
     if (autoplay) {
         if (autoplay_game < 0 || autoplay_game >= GAME_COUNT) autoplay_game = 0;
         a->game_index = autoplay_game;
-        start_game(a, 1);
+        start_game(a, 0x1234567u);
     } else {
         a->screen = APP_MENU;
     }
@@ -139,7 +145,7 @@ void app_render(const app_t *a, const draw_t *d) {
         menu_draw_games(d, a->menu_row);
         break;
     case APP_SETTINGS:
-        menu_draw_settings(d);
+        settings_screen_render(&a->settings_screen, d);
         break;
     case APP_GAME:
         g = active_game(a);
@@ -166,4 +172,19 @@ sfx_id_t app_next_sfx(app_t *a) {
         return sfx_pop(g->sfx(g->state));
     }
     return SFX_NONE;
+}
+
+void app_high_scores(const app_t *a, int32_t out[SAVE_MAX_GAMES]) {
+    (void)a;
+    for (int i = 0; i < SAVE_MAX_GAMES; i++) {
+        if (i < GAME_COUNT) out[i] = (int32_t)GAMES[i]->get_high_score(GAMES[i]->state);
+        else out[i] = 0;
+    }
+}
+
+void app_apply_save(app_t *a, const save_t *s) {
+    a->settings = s->settings;
+    for (int i = 0; i < GAME_COUNT && i < SAVE_MAX_GAMES; i++) {
+        GAMES[i]->set_high_score(GAMES[i]->state, (int)s->high_scores[i]);
+    }
 }
