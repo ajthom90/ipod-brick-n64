@@ -202,6 +202,146 @@ static void test_level_clear_refills_and_speeds_up(void) {
     CHECK(g.ball_speed == BRICK_BALL_SPEED_MAX);
 }
 
+static void test_side_wall_bounce(void) {
+    brick_game_t g = playing();
+    g.ball_x = (BRICK_PLAY_X1 - BRICK_BALL_SIZE - 1) << 8; g.ball_y = 150 << 8;
+    g.ball_vx = 512; g.ball_vy = 0;
+    tick(&g, NULL, 1);
+    CHECK(g.ball_vx == -512);
+    CHECK(brick_ball_rect(&g).x1 <= BRICK_PLAY_X1);
+    g.ball_x = (BRICK_PLAY_X0 + 1) << 8; g.ball_vx = -512;
+    tick(&g, NULL, 1);
+    CHECK(g.ball_vx == 512);
+    CHECK(brick_ball_rect(&g).x0 >= BRICK_PLAY_X0);
+}
+
+static void test_top_wall_bounce(void) {
+    brick_game_t g = playing();
+    memset(g.cells, 0, sizeof g.cells); g.bricks_left = 1;   /* no bricks in the way, no level clear */
+    g.ball_x = 150 << 8; g.ball_y = (BRICK_PLAY_Y0 + 1) << 8;
+    g.ball_vx = 0; g.ball_vy = -512;
+    tick(&g, NULL, 1);
+    CHECK(g.ball_vy == 512);
+    CHECK(brick_ball_rect(&g).y0 >= BRICK_PLAY_Y0);
+}
+
+static void test_brick_hit_clears_one_cell(void) {
+    brick_game_t g = playing();
+    brick_rect_t cell = brick_cell_rect(BRICK_ROWS - 1, 3);
+    g.ball_x = (cell.x0 + 10) << 8; g.ball_y = (cell.y1 + 1) << 8;
+    g.ball_vx = 0; g.ball_vy = -512;
+    tick(&g, NULL, 1);
+    CHECK(g.cells[BRICK_ROWS - 1][3] == 0);
+    CHECK(g.score == 1);
+    CHECK(g.bricks_left == BRICK_ROWS * BRICK_COLS - 1);
+    CHECK(g.ball_vy == 512);
+    CHECK(brick_ball_rect(&g).y0 >= cell.y1);
+    int present = 0;
+    for (int r = 0; r < BRICK_ROWS; r++) for (int c = 0; c < BRICK_COLS; c++) present += g.cells[r][c];
+    CHECK(present == BRICK_ROWS * BRICK_COLS - 1);
+}
+
+static void test_brick_side_hit_flips_x(void) {
+    brick_game_t g = playing();
+    /* The column gap (2 px) is narrower than the ball (6 px), so clear the
+     * neighbour to the left and approach cell (5,3) through that hole. */
+    g.cells[BRICK_ROWS - 1][2] = 0; g.bricks_left--;
+    brick_rect_t cell = brick_cell_rect(BRICK_ROWS - 1, 3);
+    g.ball_x = (cell.x0 - BRICK_BALL_SIZE - 1) << 8; g.ball_y = (cell.y0 + 2) << 8;
+    g.ball_vx = 512; g.ball_vy = 0;
+    tick(&g, NULL, 1);
+    CHECK(g.cells[BRICK_ROWS - 1][3] == 0);
+    CHECK(g.cells[BRICK_ROWS - 1][4] == 1);
+    CHECK(g.score == 1);
+    CHECK(g.ball_vx == -512);
+    CHECK(brick_ball_rect(&g).x1 <= cell.x0);
+}
+
+static void test_paddle_bounce_zones(void) {
+    for (int z = 0; z < 7; z++) {
+        brick_game_t g = playing();
+        int cx = g.paddle_x + (z * BRICK_PADDLE_W) / 7 + BRICK_PADDLE_W / 14;
+        g.ball_x = (cx - BRICK_BALL_SIZE / 2) << 8;
+        g.ball_y = (BRICK_PADDLE_Y - BRICK_BALL_SIZE - 1) << 8;
+        g.ball_vx = 0; g.ball_vy = g.ball_speed;
+        tick(&g, NULL, 1);
+        int sign = BRICK_BOUNCE_SIGN[z] ? BRICK_BOUNCE_SIGN[z] : 1;
+        CHECK(g.state == BRICK_ST_PLAY);
+        CHECK(g.ball_vx == sign * ((g.ball_speed * BRICK_BOUNCE_SIN[z]) >> 8));
+        CHECK(g.ball_vy == -((g.ball_speed * BRICK_BOUNCE_COS[z]) >> 8));
+        CHECK(brick_ball_rect(&g).y1 <= BRICK_PADDLE_Y);
+    }
+    /* zone 3 keeps a leftward incoming direction */
+    brick_game_t g = playing();
+    g.ball_x = (g.paddle_x + BRICK_PADDLE_W / 2 - BRICK_BALL_SIZE / 2) << 8;
+    g.ball_y = (BRICK_PADDLE_Y - BRICK_BALL_SIZE - 1) << 8;
+    g.ball_vx = -100; g.ball_vy = g.ball_speed;
+    tick(&g, NULL, 1);
+    CHECK(g.ball_vx == -((g.ball_speed * BRICK_BOUNCE_SIN[3]) >> 8));
+}
+
+static void test_ball_below_paddle_loses_life(void) {
+    brick_game_t g = playing();
+    g.ball_x = 150 << 8; g.ball_y = (BRICK_PLAY_Y1 - 2) << 8;
+    g.ball_vx = 0; g.ball_vy = 512;
+    tick(&g, NULL, 1);
+    CHECK(g.lives == BRICK_LIVES - 1);
+    CHECK(g.state == BRICK_ST_SERVE);
+}
+
+static void test_clearing_last_brick_advances_level(void) {
+    brick_game_t g = playing();
+    memset(g.cells, 0, sizeof g.cells); g.cells[BRICK_ROWS - 1][0] = 1; g.bricks_left = 1;
+    brick_rect_t cell = brick_cell_rect(BRICK_ROWS - 1, 0);
+    g.ball_x = (cell.x0 + 10) << 8; g.ball_y = (cell.y1 + 1) << 8;
+    g.ball_vx = 0; g.ball_vy = -512;
+    tick(&g, NULL, 1);
+    CHECK(g.level == 2 && g.state == BRICK_ST_SERVE);
+    CHECK(g.bricks_left == BRICK_ROWS * BRICK_COLS);
+    CHECK(g.ball_speed == BRICK_BALL_SPEED_BASE + BRICK_BALL_SPEED_RAMP);
+    CHECK(g.score == 1);
+}
+
+static void test_max_speed_collides_cleanly(void) {
+    brick_game_t g = playing();
+    g.level = 12; g.ball_speed = BRICK_BALL_SPEED_MAX;
+    brick_rect_t cell = brick_cell_rect(BRICK_ROWS - 1, 5);
+    g.ball_x = (cell.x0 + 10) << 8; g.ball_y = (cell.y1 + 2) << 8;
+    g.ball_vx = 0; g.ball_vy = -BRICK_BALL_SPEED_MAX;
+    tick(&g, NULL, 1);
+    CHECK(g.cells[BRICK_ROWS - 1][5] == 0);
+    CHECK(g.ball_vy > 0);
+    CHECK(brick_ball_rect(&g).y0 >= cell.y1);
+}
+
+static void test_ball_stays_inside_playfield_for_long(void) {
+    brick_game_t g = playing();
+    brick_input_t in;
+    for (int t = 0; t < 5000; t++) {
+        brick_autoplay_input(&g, &in);
+        brick_update(&g, &in);
+        if (g.state != BRICK_ST_PLAY) continue;
+        brick_rect_t b = brick_ball_rect(&g);
+        CHECK(b.x0 >= BRICK_PLAY_X0 && b.x1 <= BRICK_PLAY_X1);
+        CHECK(b.y0 >= BRICK_PLAY_Y0 && b.y0 < BRICK_PLAY_Y1);
+        int32_t vx = g.ball_vx, vy = g.ball_vy;
+        int32_t len2 = vx * vx + vy * vy, want = g.ball_speed * g.ball_speed;
+        CHECK(len2 > want - want / 8 && len2 < want + want / 8);   /* speed magnitude stays constant */
+    }
+}
+
+static void test_autoplay_clears_level_and_ends(void) {
+    brick_game_t g; brick_init(&g);
+    brick_input_t in;
+    int t = 0;
+    while (g.level < 2 && t < 30000) { brick_autoplay_input(&g, &in); brick_update(&g, &in); t++; }
+    CHECK(g.level == 2);
+    printf("\n    level 2 after %d ticks (%d s)\n%-44s", t, t / 60, "");
+    while (g.state != BRICK_ST_GAMEOVER && t < 60000) { brick_autoplay_input(&g, &in); brick_update(&g, &in); t++; }
+    CHECK(g.state == BRICK_ST_GAMEOVER);
+    CHECK(g.high_score >= BRICK_ROWS * BRICK_COLS);
+}
+
 int main(void) {
     RUN(test_init_is_title);
     RUN(test_cell_rects);
@@ -217,6 +357,16 @@ int main(void) {
     RUN(test_pause_toggles);
     RUN(test_ball_lost_costs_life_then_game_over);
     RUN(test_level_clear_refills_and_speeds_up);
+    RUN(test_side_wall_bounce);
+    RUN(test_top_wall_bounce);
+    RUN(test_brick_hit_clears_one_cell);
+    RUN(test_brick_side_hit_flips_x);
+    RUN(test_paddle_bounce_zones);
+    RUN(test_ball_below_paddle_loses_life);
+    RUN(test_clearing_last_brick_advances_level);
+    RUN(test_max_speed_collides_cleanly);
+    RUN(test_ball_stays_inside_playfield_for_long);
+    RUN(test_autoplay_clears_level_and_ends);
     printf("%d failure(s)\n", failures);
     return failures ? 1 : 0;
 }
