@@ -30,7 +30,7 @@ image:
 	docker build -t $(IMAGE) .
 
 rom:
-	$(DOCKER_RUN) make rom-in-container
+	$(DOCKER_RUN) make rom-in-container DEBUG=$(DEBUG)
 
 rom-autoplay:
 	$(DOCKER_RUN) make rom-in-container ROMNAME=brick-autoplay BUILD_DIR=build/autoplay AUTOPLAY=1

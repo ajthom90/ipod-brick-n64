@@ -55,8 +55,10 @@ static void render(const brick_game_t *g) {
         }
         rdpq_set_fill_color(rgb(BRICK_COLOR_PADDLE));
         fill(brick_paddle_rect(g));
-        rdpq_set_fill_color(rgb(BRICK_COLOR_BALL));
-        fill(brick_ball_rect(g));
+        if (g->state != BRICK_ST_GAMEOVER) {
+            rdpq_set_fill_color(rgb(BRICK_COLOR_BALL));
+            fill(brick_ball_rect(g));
+        }
     }
 
     rdpq_set_mode_standard();
