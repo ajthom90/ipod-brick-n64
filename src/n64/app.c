@@ -13,6 +13,7 @@ static void fill(brick_rect_t r) {
     rdpq_fill_rectangle(r.x0, r.y0, r.x1, r.y1);
 }
 
+#ifndef BRICK_AUTOPLAY
 /* Sample the controller once per rendered frame. Axis/direction are levels;
  * launch/confirm/pause are OR-ed in so a press is never lost, and the caller
  * clears them after a tick consumes them. */
@@ -36,6 +37,7 @@ static void read_input(brick_input_t *in) {
     if (pressed.a || pressed.b) in->confirm = true;
     if (pressed.start) in->pause = true;
 }
+#endif
 
 static void render(const brick_game_t *g) {
     surface_t *fb = display_get();
@@ -97,14 +99,28 @@ int main(void) {
     brick_init(&game);
     brick_input_t in = {0};
 
+    const int hz = (get_tv_type() == TV_PAL) ? 50 : 60;
+    const uint64_t dt = TICKS_PER_SECOND / hz;
+    uint64_t prev = get_ticks();
+    uint64_t acc = 0;
+
     while (1) {
+        uint64_t now = get_ticks();
+        acc += now - prev;
+        prev = now;
 #ifdef BRICK_AUTOPLAY
         brick_autoplay_input(&game, &in);
 #else
         read_input(&in);
 #endif
-        brick_update(&game, &in);
-        in.launch = in.confirm = in.pause = false;
+        int steps = 0;
+        while (acc >= dt && steps < BRICK_CATCHUP_MAX) {
+            brick_update(&game, &in);
+            in.launch = in.confirm = in.pause = false;
+            acc -= dt;
+            steps++;
+        }
+        if (steps == BRICK_CATCHUP_MAX) acc = 0;   /* drop the backlog after a stall */
         render(&game);
     }
 }
