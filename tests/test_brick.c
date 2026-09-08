@@ -79,12 +79,144 @@ static void test_bounce_table_is_unit_length(void) {
     CHECK(BRICK_BOUNCE_SIGN[3] == 0 && BRICK_BOUNCE_SIGN[0] == -1 && BRICK_BOUNCE_SIGN[6] == 1);
 }
 
+/* A game that has been started and launched: state PLAY. */
+static brick_game_t playing(void) {
+    brick_game_t g; brick_init(&g); brick_new_game(&g);
+    brick_input_t in; memset(&in, 0, sizeof in); in.launch = true;
+    brick_update(&g, &in);
+    return g;
+}
+
+static void test_new_game_resets(void) {
+    brick_game_t g; brick_init(&g); g.high_score = 42; brick_new_game(&g);
+    CHECK(g.state == BRICK_ST_SERVE);
+    CHECK(g.lives == BRICK_LIVES && g.level == 1 && g.score == 0);
+    CHECK(g.high_score == 42);
+    CHECK(g.bricks_left == BRICK_ROWS * BRICK_COLS);
+    for (int r = 0; r < BRICK_ROWS; r++) for (int c = 0; c < BRICK_COLS; c++) CHECK(g.cells[r][c] == 1);
+    CHECK(g.ball_speed == BRICK_BALL_SPEED_BASE);
+    CHECK(g.paddle_x == (BRICK_PLAY_X0 + BRICK_PLAY_X1) / 2 - BRICK_PADDLE_W / 2);
+    brick_rect_t b = brick_ball_rect(&g), p = brick_paddle_rect(&g);
+    CHECK(b.y1 == p.y0);
+    CHECK(b.x0 == p.x0 + (BRICK_PADDLE_W - BRICK_BALL_SIZE) / 2);
+    CHECK(g.ball_vx == 0 && g.ball_vy == 0);
+}
+
+static void test_title_confirm_starts_game(void) {
+    brick_game_t g; brick_init(&g);
+    brick_input_t in; memset(&in, 0, sizeof in); in.confirm = true;
+    brick_update(&g, &in);
+    CHECK(g.state == BRICK_ST_SERVE);
+    CHECK(g.lives == BRICK_LIVES);
+}
+
+static void test_launch_enters_play(void) {
+    brick_game_t g = playing();
+    CHECK(g.state == BRICK_ST_PLAY);
+    CHECK(g.ball_vy == -((BRICK_BALL_SPEED_BASE * BRICK_BOUNCE_COS[3]) >> 8));
+    CHECK(g.ball_vx == ((BRICK_BALL_SPEED_BASE * BRICK_BOUNCE_SIN[3]) >> 8));  /* odd level: right */
+}
+
+static void test_serve_ball_follows_paddle(void) {
+    brick_game_t g; brick_init(&g); brick_new_game(&g);
+    int x0 = g.paddle_x;
+    brick_input_t in; memset(&in, 0, sizeof in); in.paddle_dir = 1;
+    tick(&g, &in, 5);
+    CHECK(g.state == BRICK_ST_SERVE);
+    CHECK(g.paddle_x == x0 + 5 * BRICK_PADDLE_SPEED_DIGITAL);
+    brick_rect_t b = brick_ball_rect(&g), p = brick_paddle_rect(&g);
+    CHECK(b.x0 == p.x0 + (BRICK_PADDLE_W - BRICK_BALL_SIZE) / 2);
+    CHECK(b.y1 == p.y0);
+}
+
+static void test_paddle_clamps_to_playfield(void) {
+    brick_game_t g; brick_init(&g); brick_new_game(&g);
+    brick_input_t in; memset(&in, 0, sizeof in);
+    in.paddle_dir = -1; tick(&g, &in, 200);
+    CHECK(g.paddle_x == BRICK_PLAY_X0);
+    in.paddle_dir = 1; tick(&g, &in, 200);
+    CHECK(g.paddle_x == BRICK_PLAY_X1 - BRICK_PADDLE_W);
+}
+
+static void test_analog_overrides_digital(void) {
+    brick_game_t g; brick_init(&g); brick_new_game(&g);
+    int x0 = g.paddle_x;
+    brick_input_t in; memset(&in, 0, sizeof in);
+    in.paddle_axis = 256; in.paddle_dir = -1; brick_update(&g, &in);
+    CHECK(g.paddle_x == x0 + BRICK_PADDLE_SPEED_ANALOG_MAX);
+    in.paddle_axis = -128; in.paddle_dir = 0; brick_update(&g, &in);
+    CHECK(g.paddle_x == x0 + BRICK_PADDLE_SPEED_ANALOG_MAX - BRICK_PADDLE_SPEED_ANALOG_MAX / 2);
+    in.paddle_axis = 0; brick_update(&g, &in);
+    CHECK(g.paddle_x == x0 + BRICK_PADDLE_SPEED_ANALOG_MAX - BRICK_PADDLE_SPEED_ANALOG_MAX / 2);
+}
+
+static void test_pause_toggles(void) {
+    brick_game_t g = playing();
+    brick_input_t pause; memset(&pause, 0, sizeof pause); pause.pause = true;
+    brick_update(&g, &pause);
+    CHECK(g.state == BRICK_ST_PAUSE && g.pause_return == BRICK_ST_PLAY);
+    int32_t x = g.ball_x, y = g.ball_y; int px = g.paddle_x;
+    brick_input_t move; memset(&move, 0, sizeof move); move.paddle_dir = 1;
+    tick(&g, &move, 10);
+    CHECK(g.ball_x == x && g.ball_y == y && g.paddle_x == px);
+    brick_update(&g, &pause);
+    CHECK(g.state == BRICK_ST_PLAY);
+
+    brick_game_t s; brick_init(&s); brick_new_game(&s);
+    brick_update(&s, &pause);
+    CHECK(s.state == BRICK_ST_PAUSE && s.pause_return == BRICK_ST_SERVE);
+    brick_update(&s, &pause);
+    CHECK(s.state == BRICK_ST_SERVE);
+}
+
+static void test_ball_lost_costs_life_then_game_over(void) {
+    brick_game_t g = playing(); g.score = 7;
+    brick_on_ball_lost(&g);
+    CHECK(g.lives == BRICK_LIVES - 1 && g.state == BRICK_ST_SERVE);
+    brick_rect_t b = brick_ball_rect(&g), p = brick_paddle_rect(&g);
+    CHECK(b.y1 == p.y0 && g.ball_vx == 0 && g.ball_vy == 0);
+    brick_on_ball_lost(&g);
+    brick_on_ball_lost(&g);
+    CHECK(g.lives == 0 && g.state == BRICK_ST_GAMEOVER);
+    CHECK(g.high_score == 7);
+    brick_input_t in; memset(&in, 0, sizeof in); in.confirm = true;
+    brick_update(&g, &in);
+    CHECK(g.state == BRICK_ST_TITLE && g.high_score == 7);
+    brick_new_game(&g);
+    CHECK(g.high_score == 7 && g.score == 0);
+}
+
+static void test_level_clear_refills_and_speeds_up(void) {
+    brick_game_t g = playing(); g.score = 60;
+    memset(g.cells, 0, sizeof g.cells); g.bricks_left = 0;
+    brick_on_level_clear(&g);
+    CHECK(g.level == 2 && g.state == BRICK_ST_SERVE);
+    CHECK(g.bricks_left == BRICK_ROWS * BRICK_COLS);
+    for (int r = 0; r < BRICK_ROWS; r++) for (int c = 0; c < BRICK_COLS; c++) CHECK(g.cells[r][c] == 1);
+    CHECK(g.ball_speed == BRICK_BALL_SPEED_BASE + BRICK_BALL_SPEED_RAMP);
+    CHECK(g.score == 60);
+    brick_input_t in; memset(&in, 0, sizeof in); in.launch = true;
+    brick_update(&g, &in);
+    CHECK(g.state == BRICK_ST_PLAY && g.ball_vx < 0);   /* even level: serve to the left */
+    g.level = 30; brick_on_level_clear(&g);
+    CHECK(g.ball_speed == BRICK_BALL_SPEED_MAX);
+}
+
 int main(void) {
     RUN(test_init_is_title);
     RUN(test_cell_rects);
     RUN(test_row_colors);
     RUN(test_paddle_and_ball_rects);
     RUN(test_bounce_table_is_unit_length);
+    RUN(test_new_game_resets);
+    RUN(test_title_confirm_starts_game);
+    RUN(test_launch_enters_play);
+    RUN(test_serve_ball_follows_paddle);
+    RUN(test_paddle_clamps_to_playfield);
+    RUN(test_analog_overrides_digital);
+    RUN(test_pause_toggles);
+    RUN(test_ball_lost_costs_life_then_game_over);
+    RUN(test_level_clear_refills_and_speeds_up);
     printf("%d failure(s)\n", failures);
     return failures ? 1 : 0;
 }
