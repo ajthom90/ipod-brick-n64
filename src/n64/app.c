@@ -1,6 +1,7 @@
 #include <libdragon.h>
 #include "../game.h"
 #include "../games/registry.h"
+#include "../app_state.h"
 
 static color_t rgb(uint32_t c) { return RGBA32((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF, 0xFF); }
 
@@ -76,17 +77,14 @@ int main(void) {
     rdpq_text_register_font(DRAW_FONT_HUD, hud);
     rdpq_text_register_font(DRAW_FONT_BIG, big);
 
+    static app_t app;
 #ifdef AUTOPLAY_GAME
     int gi = game_index_by_name(AUTOPLAY_GAME);
     if (gi < 0) gi = 0;
-    const game_desc_t *game = GAMES[gi];
+    app_init(&app, true, gi);
 #else
-    const game_desc_t *game = GAMES[0];
+    app_init(&app, false, 0);
 #endif
-    void *state = game->state;
-    game->init(state);
-    game->set_high_score(state, 0);
-    game->start(state, (uint32_t)get_ticks() | 1u);
 
     input_t in[GAME_MAX_PLAYERS] = {0};
     bool start_pressed = false;
@@ -109,23 +107,20 @@ int main(void) {
 #endif
         int steps = 0;
         while (acc >= dt && steps < CATCHUP_MAX) {
-#ifdef AUTOPLAY_GAME
-            game->autoplay(state, in);
-#endif
-            game->update(state, in);
+            app_update(&app, in, start_pressed, (uint32_t)get_ticks() | 1u);
+            while (app_next_sfx(&app) != SFX_NONE) {}
             clear_edges(&in[0]);
             clear_edges(&in[1]);
             start_pressed = false;
             acc -= dt;
             steps++;
         }
-        (void)start_pressed;                 /* latched for Task 2 */
         if (steps == CATCHUP_MAX) acc = 0;   /* drop the backlog after a stall */
 
         surface_t *fb = display_get();
         rdpq_attach(fb, NULL);
         rdpq_set_mode_fill(rgb(COLOR_BG));
-        game->render(state, &n64_draw);
+        app_render(&app, &n64_draw);
         rdpq_detach_show();
     }
 }

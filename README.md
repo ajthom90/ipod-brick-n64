@@ -15,13 +15,13 @@ HUD and title text use [Inter](https://rsms.me/inter/) Bold, licensed under the 
 ## Build
 
     make image        # one-time: build the toolchain container (about a minute)
-    make rom          # produces brick.z64
+    make rom          # produces games.z64
 
 ## Run
 
-    make run          # opens brick.z64 in ares
+    make run          # opens games.z64 in ares
 
-Or open `brick.z64` in ares yourself.
+Or open `games.z64` in ares yourself.
 
 ## Controls
 

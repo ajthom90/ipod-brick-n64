@@ -4,6 +4,7 @@
 #include <string.h>
 #include "game.h"
 #include "games/registry.h"
+#include "app_state.h"
 
 static uint8_t px[SCREEN_H][SCREEN_W][3];
 
@@ -40,7 +41,7 @@ static void host_text(void *ctx, draw_font_t font, draw_align_t align, int x, in
 
 static const draw_t host_draw = { .ctx = NULL, .rect = host_rect, .text = host_text };
 
-static void save(const char *dir, const char *name, const game_desc_t *game, int tick) {
+static void save(const char *dir, const char *name, int tick, int is_over) {
     char path[512];
     snprintf(path, sizeof path, "%s/%s", dir, name);
     FILE *f = fopen(path, "wb");
@@ -48,33 +49,22 @@ static void save(const char *dir, const char *name, const game_desc_t *game, int
     fprintf(f, "P6\n%d %d\n255\n", SCREEN_W, SCREEN_H);
     fwrite(px, 1, sizeof px, f);
     fclose(f);
-    printf("%-16s tick=%d is_over=%d\n", name, tick, game->is_over(game->state));
+    printf("%-16s tick=%d is_over=%d\n", name, tick, is_over);
 }
 
-int main(int argc, char **argv) {
-    if (argc != 3) {
-        fprintf(stderr, "usage: framedump <game-name> <outdir>\n");
-        return 2;
-    }
-    int gi = game_index_by_name(argv[1]);
-    if (gi < 0) {
-        fprintf(stderr, "unknown game: %s\n", argv[1]);
-        return 2;
-    }
-    const game_desc_t *game = GAMES[gi];
+static int dump_game(const char *dir, const game_desc_t *game) {
     void *st = game->state;
     game->init(st);
     game->set_high_score(st, 0);
     game->start(st, 0x1234567u);
 
-    const char *dir = argv[2];
     input_t in[GAME_MAX_PLAYERS];
     char name[64];
     for (int t = 0; t <= 1200; t++) {
         if (t % 30 == 0) {
             game->render(st, &host_draw);
             snprintf(name, sizeof name, "frame-%04d.ppm", t);
-            save(dir, name, game, t);
+            save(dir, name, t, game->is_over(st));
         }
         game->autoplay(st, in);
         game->update(st, in);
@@ -86,6 +76,60 @@ int main(int argc, char **argv) {
         t++;
     }
     game->render(st, &host_draw);
-    save(dir, "gameover.ppm", game, t);
+    save(dir, "gameover.ppm", t, game->is_over(st));
     return game->is_over(st) ? 0 : 1;
+}
+
+static int dump_menu(const char *dir) {
+    app_t app;
+    app_init(&app, false, 0);
+    input_t in[GAME_MAX_PLAYERS];
+    char name[64];
+    for (int t = 0; t <= 60; t++) {
+        if (t % 30 == 0) {
+            app_render(&app, &host_draw);
+            snprintf(name, sizeof name, "frame-%04d.ppm", t);
+            save(dir, name, t, 0);
+        }
+        memset(in, 0, sizeof in);
+        in[0].dpad_y = -1;
+        app_update(&app, in, false, 0x1234567u);
+    }
+    return 0;
+}
+
+static int dump_pause(const char *dir) {
+    app_t app;
+    app_init(&app, false, 0);
+    input_t in[GAME_MAX_PLAYERS];
+    memset(in, 0, sizeof in);
+    in[0].a = true;
+    app_update(&app, in, false, 0x1234567u);
+    const game_desc_t *game = GAMES[app.game_index];
+    for (int t = 0; t < 300; t++) {
+        memset(in, 0, sizeof in);
+        game->autoplay(game->state, in);
+        app_update(&app, in, false, 0x1234567u);
+    }
+    memset(in, 0, sizeof in);
+    app_update(&app, in, true, 0x1234567u);
+    app_render(&app, &host_draw);
+    save(dir, "frame-0000.ppm", 0, 0);
+    return 0;
+}
+
+int main(int argc, char **argv) {
+    if (argc != 3) {
+        fprintf(stderr, "usage: framedump <game-name|menu|pause> <outdir>\n");
+        return 2;
+    }
+    const char *dir = argv[2];
+    if (strcmp(argv[1], "menu") == 0) return dump_menu(dir);
+    if (strcmp(argv[1], "pause") == 0) return dump_pause(dir);
+    int gi = game_index_by_name(argv[1]);
+    if (gi < 0) {
+        fprintf(stderr, "unknown game: %s\n", argv[1]);
+        return 2;
+    }
+    return dump_game(dir, GAMES[gi]);
 }
