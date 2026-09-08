@@ -1,23 +1,11 @@
-#include <stdio.h>
-#include <string.h>
-#include "brick.h"
-
-static int failures = 0;
-
-#define CHECK(cond) do { \
-    if (!(cond)) { failures++; fprintf(stderr, "  FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond); return; } \
-} while (0)
-
-#define RUN(fn) do { \
-    printf("%-44s", #fn); fflush(stdout); \
-    int before = failures; fn(); \
-    puts(before == failures ? "ok" : "FAILED"); \
-} while (0)
+#include "harness.h"
+#include "games/brick.h"
 
 /* Advance n ticks with the given input (NULL = no input). */
-static void tick(brick_game_t *g, const brick_input_t *in, int n) {
-    brick_input_t zero; memset(&zero, 0, sizeof zero);
-    if (!in) in = &zero;
+static void tick(brick_game_t *g, const input_t *in, int n) {
+    input_t zero[GAME_MAX_PLAYERS];
+    memset(zero, 0, sizeof zero);
+    if (!in) in = zero;
     for (int i = 0; i < n; i++) brick_update(g, in);
 }
 
@@ -82,8 +70,8 @@ static void test_bounce_table_is_unit_length(void) {
 /* A game that has been started and launched: state PLAY. */
 static brick_game_t playing(void) {
     brick_game_t g; brick_init(&g); brick_new_game(&g);
-    brick_input_t in; memset(&in, 0, sizeof in); in.launch = true;
-    brick_update(&g, &in);
+    input_t in[2]; memset(in, 0, sizeof in); in[0].a = true;
+    brick_update(&g, in);
     return g;
 }
 
@@ -104,8 +92,8 @@ static void test_new_game_resets(void) {
 
 static void test_title_confirm_starts_game(void) {
     brick_game_t g; brick_init(&g);
-    brick_input_t in; memset(&in, 0, sizeof in); in.confirm = true;
-    brick_update(&g, &in);
+    input_t in[2]; memset(in, 0, sizeof in); in[0].a = true;
+    brick_update(&g, in);
     CHECK(g.state == BRICK_ST_SERVE);
     CHECK(g.lives == BRICK_LIVES);
 }
@@ -120,8 +108,8 @@ static void test_launch_enters_play(void) {
 static void test_serve_ball_follows_paddle(void) {
     brick_game_t g; brick_init(&g); brick_new_game(&g);
     int x0 = g.paddle_x;
-    brick_input_t in; memset(&in, 0, sizeof in); in.paddle_dir = 1;
-    tick(&g, &in, 5);
+    input_t in[2]; memset(in, 0, sizeof in); in[0].dpad_x = 1;
+    tick(&g, in, 5);
     CHECK(g.state == BRICK_ST_SERVE);
     CHECK(g.paddle_x == x0 + 5 * BRICK_PADDLE_SPEED_DIGITAL);
     brick_rect_t b = brick_ball_rect(&g), p = brick_paddle_rect(&g);
@@ -131,42 +119,23 @@ static void test_serve_ball_follows_paddle(void) {
 
 static void test_paddle_clamps_to_playfield(void) {
     brick_game_t g; brick_init(&g); brick_new_game(&g);
-    brick_input_t in; memset(&in, 0, sizeof in);
-    in.paddle_dir = -1; tick(&g, &in, 200);
+    input_t in[2]; memset(in, 0, sizeof in);
+    in[0].dpad_x = -1; tick(&g, in, 200);
     CHECK(g.paddle_x == BRICK_PLAY_X0);
-    in.paddle_dir = 1; tick(&g, &in, 200);
+    in[0].dpad_x = 1; tick(&g, in, 200);
     CHECK(g.paddle_x == BRICK_PLAY_X1 - BRICK_PADDLE_W);
 }
 
 static void test_analog_overrides_digital(void) {
     brick_game_t g; brick_init(&g); brick_new_game(&g);
     int x0 = g.paddle_x;
-    brick_input_t in; memset(&in, 0, sizeof in);
-    in.paddle_axis = 256; in.paddle_dir = -1; brick_update(&g, &in);
+    input_t in[2]; memset(in, 0, sizeof in);
+    in[0].stick_x = 256; in[0].dpad_x = -1; brick_update(&g, in);
     CHECK(g.paddle_x == x0 + BRICK_PADDLE_SPEED_ANALOG_MAX);
-    in.paddle_axis = -128; in.paddle_dir = 0; brick_update(&g, &in);
+    in[0].stick_x = -128; in[0].dpad_x = 0; brick_update(&g, in);
     CHECK(g.paddle_x == x0 + BRICK_PADDLE_SPEED_ANALOG_MAX - BRICK_PADDLE_SPEED_ANALOG_MAX / 2);
-    in.paddle_axis = 0; brick_update(&g, &in);
+    in[0].stick_x = 0; brick_update(&g, in);
     CHECK(g.paddle_x == x0 + BRICK_PADDLE_SPEED_ANALOG_MAX - BRICK_PADDLE_SPEED_ANALOG_MAX / 2);
-}
-
-static void test_pause_toggles(void) {
-    brick_game_t g = playing();
-    brick_input_t pause; memset(&pause, 0, sizeof pause); pause.pause = true;
-    brick_update(&g, &pause);
-    CHECK(g.state == BRICK_ST_PAUSE && g.pause_return == BRICK_ST_PLAY);
-    int32_t x = g.ball_x, y = g.ball_y; int px = g.paddle_x;
-    brick_input_t move; memset(&move, 0, sizeof move); move.paddle_dir = 1;
-    tick(&g, &move, 10);
-    CHECK(g.ball_x == x && g.ball_y == y && g.paddle_x == px);
-    brick_update(&g, &pause);
-    CHECK(g.state == BRICK_ST_PLAY);
-
-    brick_game_t s; brick_init(&s); brick_new_game(&s);
-    brick_update(&s, &pause);
-    CHECK(s.state == BRICK_ST_PAUSE && s.pause_return == BRICK_ST_SERVE);
-    brick_update(&s, &pause);
-    CHECK(s.state == BRICK_ST_SERVE);
 }
 
 static void test_ball_lost_costs_life_then_game_over(void) {
@@ -179,8 +148,8 @@ static void test_ball_lost_costs_life_then_game_over(void) {
     brick_on_ball_lost(&g);
     CHECK(g.lives == 0 && g.state == BRICK_ST_GAMEOVER);
     CHECK(g.high_score == 7);
-    brick_input_t in; memset(&in, 0, sizeof in); in.confirm = true;
-    brick_update(&g, &in);
+    input_t in[2]; memset(in, 0, sizeof in); in[0].a = true;
+    brick_update(&g, in);
     CHECK(g.state == BRICK_ST_TITLE && g.high_score == 7);
     brick_new_game(&g);
     CHECK(g.high_score == 7 && g.score == 0);
@@ -195,8 +164,8 @@ static void test_level_clear_refills_and_speeds_up(void) {
     for (int r = 0; r < BRICK_ROWS; r++) for (int c = 0; c < BRICK_COLS; c++) CHECK(g.cells[r][c] == 1);
     CHECK(g.ball_speed == BRICK_BALL_SPEED_BASE + BRICK_BALL_SPEED_RAMP);
     CHECK(g.score == 60);
-    brick_input_t in; memset(&in, 0, sizeof in); in.launch = true;
-    brick_update(&g, &in);
+    input_t in[2]; memset(in, 0, sizeof in); in[0].a = true;
+    brick_update(&g, in);
     CHECK(g.state == BRICK_ST_PLAY && g.ball_vx < 0);   /* even level: serve to the left */
     g.level = 30; brick_on_level_clear(&g);
     CHECK(g.ball_speed == BRICK_BALL_SPEED_MAX);
@@ -316,10 +285,10 @@ static void test_max_speed_collides_cleanly(void) {
 
 static void test_ball_stays_inside_playfield_for_long(void) {
     brick_game_t g = playing();
-    brick_input_t in;
+    input_t in[2];
     for (int t = 0; t < 5000; t++) {
-        brick_autoplay_input(&g, &in);
-        brick_update(&g, &in);
+        brick_autoplay_input(&g, in);
+        brick_update(&g, in);
         if (g.state != BRICK_ST_PLAY) continue;
         brick_rect_t b = brick_ball_rect(&g);
         CHECK(b.x0 >= BRICK_PLAY_X0 && b.x1 <= BRICK_PLAY_X1);
@@ -332,14 +301,44 @@ static void test_ball_stays_inside_playfield_for_long(void) {
 
 static void test_autoplay_clears_level_and_ends(void) {
     brick_game_t g; brick_init(&g);
-    brick_input_t in;
+    input_t in[2];
     int t = 0;
-    while (g.level < 2 && t < 15000) { brick_autoplay_input(&g, &in); brick_update(&g, &in); t++; }
+    while (g.level < 2 && t < 15000) { brick_autoplay_input(&g, in); brick_update(&g, in); t++; }
     CHECK(g.level == 2);
-    printf("\n    level 2 after %d ticks (%d s)\n%-44s", t, t / 60, "");
-    while (g.state != BRICK_ST_GAMEOVER && t < 60000) { brick_autoplay_input(&g, &in); brick_update(&g, &in); t++; }
+    printf("\n    level 2 after %d ticks (%d s)\n%-52s", t, t / 60, "");
+    while (g.state != BRICK_ST_GAMEOVER && t < 60000) { brick_autoplay_input(&g, in); brick_update(&g, in); t++; }
     CHECK(g.state == BRICK_ST_GAMEOVER);
     CHECK(g.high_score >= BRICK_ROWS * BRICK_COLS);
+}
+
+static void test_sfx_events(void) {
+    brick_game_t g = playing();
+    brick_rect_t cell = brick_cell_rect(BRICK_ROWS - 1, 3);
+    g.ball_x = (cell.x0 + 10) << 8; g.ball_y = (cell.y1 + 1) << 8; g.ball_vx = 0; g.ball_vy = -512;
+    tick(&g, NULL, 1);
+    CHECK(sfx_pop(&g.sfx) == SFX_HIT);
+    CHECK(sfx_pop(&g.sfx) == SFX_NONE);
+    g.ball_x = (g.paddle_x + 21) << 8; g.ball_y = (BRICK_PADDLE_Y - BRICK_BALL_SIZE - 1) << 8; g.ball_vx = 0; g.ball_vy = 512;
+    tick(&g, NULL, 1);
+    CHECK(sfx_pop(&g.sfx) == SFX_BOUNCE);
+    memset(g.cells, 0, sizeof g.cells); g.cells[BRICK_ROWS - 1][0] = 1; g.bricks_left = 1;
+    cell = brick_cell_rect(BRICK_ROWS - 1, 0);
+    g.ball_x = (cell.x0 + 10) << 8; g.ball_y = (cell.y1 + 1) << 8; g.ball_vx = 0; g.ball_vy = -512;
+    tick(&g, NULL, 1);
+    CHECK(sfx_pop(&g.sfx) == SFX_HIT);
+    CHECK(sfx_pop(&g.sfx) == SFX_CLEAR);
+    g.lives = 1; brick_on_ball_lost(&g);
+    CHECK(sfx_pop(&g.sfx) == SFX_GAME_OVER);
+}
+
+static void test_descriptor(void) {
+    brick_game_t *g = GAME_BRICK.state;
+    GAME_BRICK.init(g); GAME_BRICK.set_high_score(g, 99); GAME_BRICK.start(g, 1);
+    CHECK(g->state == BRICK_ST_TITLE && GAME_BRICK.get_high_score(g) == 99);
+    CHECK(!GAME_BRICK.is_over(g));
+    CHECK(GAME_BRICK.players == 1 && GAME_BRICK.track == MUSIC_BRICK);
+    input_t in[2]; GAME_BRICK.autoplay(g, in);
+    CHECK(in[0].a);
 }
 
 int main(void) {
@@ -354,7 +353,6 @@ int main(void) {
     RUN(test_serve_ball_follows_paddle);
     RUN(test_paddle_clamps_to_playfield);
     RUN(test_analog_overrides_digital);
-    RUN(test_pause_toggles);
     RUN(test_ball_lost_costs_life_then_game_over);
     RUN(test_level_clear_refills_and_speeds_up);
     RUN(test_side_wall_bounce);
@@ -367,6 +365,7 @@ int main(void) {
     RUN(test_max_speed_collides_cleanly);
     RUN(test_ball_stays_inside_playfield_for_long);
     RUN(test_autoplay_clears_level_and_ends);
-    printf("%d failure(s)\n", failures);
-    return failures ? 1 : 0;
+    RUN(test_sfx_events);
+    RUN(test_descriptor);
+    HARNESS_MAIN_END();
 }

@@ -1,17 +1,20 @@
-/* Renders the game core to PPM frames on the host, no N64 toolchain needed.
- * Text is not drawn; the state is printed to stdout instead. */
+/* Renders a game through the draw API to PPM frames on the host. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "brick.h"
+#include "game.h"
+#include "games/registry.h"
 
-static uint8_t px[BRICK_SCREEN_H][BRICK_SCREEN_W][3];
+static uint8_t px[SCREEN_H][SCREEN_W][3];
 
-static void fill(brick_rect_t r, uint32_t color) {
-    for (int y = r.y0; y < r.y1; y++) {
-        if (y < 0 || y >= BRICK_SCREEN_H) continue;
-        for (int x = r.x0; x < r.x1; x++) {
-            if (x < 0 || x >= BRICK_SCREEN_W) continue;
+static void host_rect(void *ctx, int x0, int y0, int x1, int y1, uint32_t color) {
+    (void)ctx;
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > SCREEN_W) x1 = SCREEN_W;
+    if (y1 > SCREEN_H) y1 = SCREEN_H;
+    for (int y = y0; y < y1; y++) {
+        for (int x = x0; x < x1; x++) {
             px[y][x][0] = (uint8_t)(color >> 16);
             px[y][x][1] = (uint8_t)(color >> 8);
             px[y][x][2] = (uint8_t)color;
@@ -19,60 +22,70 @@ static void fill(brick_rect_t r, uint32_t color) {
     }
 }
 
-static const char *state_name(brick_state_t s) {
-    switch (s) {
-    case BRICK_ST_TITLE: return "TITLE";
-    case BRICK_ST_SERVE: return "SERVE";
-    case BRICK_ST_PLAY: return "PLAY";
-    case BRICK_ST_PAUSE: return "PAUSE";
-    case BRICK_ST_GAMEOVER: return "GAMEOVER";
-    }
-    return "?";
+static void host_text(void *ctx, draw_font_t font, draw_align_t align, int x, int y, uint32_t rgb, const char *s) {
+    (void)ctx;
+    (void)rgb;
+    int nbytes = (int)strlen(s);
+    int cw = (font == DRAW_FONT_BIG) ? 12 : 6;
+    int h = (font == DRAW_FONT_BIG) ? 20 : 10;
+    int w = cw * nbytes;
+    int x0;
+    if (align == DRAW_LEFT) x0 = x;
+    else if (align == DRAW_CENTER) x0 = x - w / 2;
+    else x0 = x - w;
+    int y0 = y - h;
+    host_rect(NULL, x0, y0, x0 + w, y, 0xC8C2B8u);
+    printf("text font=%d align=%d x=%d y=%d \"%s\"\n", (int)font, (int)align, x, y, s);
 }
 
-static void save(const char *dir, const char *name, const brick_game_t *g) {
-    brick_rect_t screen = { 0, 0, BRICK_SCREEN_W, BRICK_SCREEN_H };
-    fill(screen, BRICK_COLOR_BG);
-    if (g->state != BRICK_ST_TITLE) {
-        for (int r = 0; r < BRICK_ROWS; r++)
-            for (int c = 0; c < BRICK_COLS; c++)
-                if (g->cells[r][c]) fill(brick_cell_rect(r, c), brick_row_color(r));
-        fill(brick_paddle_rect(g), BRICK_COLOR_PADDLE);
-        fill(brick_ball_rect(g), BRICK_COLOR_BALL);
-    }
+static const draw_t host_draw = { .ctx = NULL, .rect = host_rect, .text = host_text };
+
+static void save(const char *dir, const char *name, const game_desc_t *game, int tick) {
     char path[512];
     snprintf(path, sizeof path, "%s/%s", dir, name);
     FILE *f = fopen(path, "wb");
     if (!f) { perror(path); exit(1); }
-    fprintf(f, "P6\n%d %d\n255\n", BRICK_SCREEN_W, BRICK_SCREEN_H);
+    fprintf(f, "P6\n%d %d\n255\n", SCREEN_W, SCREEN_H);
     fwrite(px, 1, sizeof px, f);
     fclose(f);
-    printf("%-16s state=%-8s score=%-4d lives=%d level=%d\n", name, state_name(g->state), g->score, g->lives, g->level);
+    printf("%-16s tick=%d is_over=%d\n", name, tick, game->is_over(game->state));
 }
 
 int main(int argc, char **argv) {
-    const char *dir = argc > 1 ? argv[1] : "build/frames";
-    brick_game_t g; brick_init(&g);
-    brick_input_t in;
+    if (argc != 3) {
+        fprintf(stderr, "usage: framedump <game-name> <outdir>\n");
+        return 2;
+    }
+    int gi = game_index_by_name(argv[1]);
+    if (gi < 0) {
+        fprintf(stderr, "unknown game: %s\n", argv[1]);
+        return 2;
+    }
+    const game_desc_t *game = GAMES[gi];
+    void *st = game->state;
+    game->init(st);
+    game->set_high_score(st, 0);
+    game->start(st, 0x1234567u);
+
+    const char *dir = argv[2];
+    input_t in[GAME_MAX_PLAYERS];
     char name[64];
     for (int t = 0; t <= 1200; t++) {
         if (t % 30 == 0) {
+            game->render(st, &host_draw);
             snprintf(name, sizeof name, "frame-%04d.ppm", t);
-            save(dir, name, &g);
+            save(dir, name, game, t);
         }
-        brick_autoplay_input(&g, &in);
-        brick_update(&g, &in);
+        game->autoplay(st, in);
+        game->update(st, in);
     }
-    brick_game_t p = g;
-    brick_input_t pause; memset(&pause, 0, sizeof pause); pause.pause = true;
-    brick_update(&p, &pause);
-    save(dir, "pause.ppm", &p);
     int t = 0;
-    while (g.state != BRICK_ST_GAMEOVER && t < 60000) {
-        brick_autoplay_input(&g, &in);
-        brick_update(&g, &in);
+    while (!game->is_over(st) && t < 200000) {
+        game->autoplay(st, in);
+        game->update(st, in);
         t++;
     }
-    save(dir, "gameover.ppm", &g);
-    return g.state == BRICK_ST_GAMEOVER ? 0 : 1;
+    game->render(st, &host_draw);
+    save(dir, "gameover.ppm", game, t);
+    return game->is_over(st) ? 0 : 1;
 }

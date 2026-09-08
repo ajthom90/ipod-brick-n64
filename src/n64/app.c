@@ -1,90 +1,61 @@
 #include <libdragon.h>
-#include "../brick.h"
+#include "../game.h"
+#include "../games/registry.h"
 
-#define FONT_HUD 1
-#define FONT_BIG 2
-#define STICK_DEAD_ZONE 8
-#define STICK_FULL 80
+static color_t rgb(uint32_t c) { return RGBA32((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF, 0xFF); }
 
-static color_t rgb(uint32_t c) {
-    return RGBA32((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF, 0xFF);
+static void n64_rect(void *ctx, int x0, int y0, int x1, int y1, uint32_t c) {
+    (void)ctx;
+    rdpq_set_fill_color(rgb(c));
+    rdpq_fill_rectangle(x0, y0, x1, y1);
 }
 
-static void fill(brick_rect_t r) {
-    rdpq_fill_rectangle(r.x0, r.y0, r.x1, r.y1);
+static void n64_text(void *ctx, draw_font_t font, draw_align_t align, int x, int y, uint32_t c, const char *s) {
+    (void)ctx;
+    rdpq_set_mode_standard();
+    rdpq_textparms_t p = { .style_id = (c == DRAW_TEXT_LIGHT) ? 1 : 0 };
+    if (align == DRAW_LEFT) {
+        rdpq_text_print(&p, font, x, y, s);
+    } else if (align == DRAW_CENTER) {
+        int w = 2 * (x < SCREEN_W - x ? x : SCREEN_W - x);     /* widest box centered on x that stays on screen */
+        p.width = (int16_t)w; p.align = ALIGN_CENTER;
+        rdpq_text_print(&p, font, x - w / 2, y, s);
+    } else {
+        p.width = (int16_t)x; p.align = ALIGN_RIGHT;
+        rdpq_text_print(&p, font, 0, y, s);
+    }
+    rdpq_set_mode_fill(rgb(COLOR_BG));
 }
 
-#ifndef BRICK_AUTOPLAY
-/* Sample the controller once per rendered frame. Axis/direction are levels;
- * launch/confirm/pause are OR-ed in so a press is never lost, and the caller
- * clears them after a tick consumes them. */
-static void read_input(brick_input_t *in) {
-    joypad_poll();
-    joypad_inputs_t inputs = joypad_get_inputs(JOYPAD_PORT_1);
-    joypad_buttons_t held = joypad_get_buttons(JOYPAD_PORT_1);
-    joypad_buttons_t pressed = joypad_get_buttons_pressed(JOYPAD_PORT_1);
+static const draw_t n64_draw = { .ctx = NULL, .rect = n64_rect, .text = n64_text };
 
-    int sx = inputs.stick_x;
-    if (sx > -STICK_DEAD_ZONE && sx < STICK_DEAD_ZONE) sx = 0;
-    if (sx > STICK_FULL) sx = STICK_FULL;
-    if (sx < -STICK_FULL) sx = -STICK_FULL;
-    in->paddle_axis = (int16_t)((sx * 256) / STICK_FULL);
+#ifndef AUTOPLAY_GAME
+static int16_t axis(int8_t v) {
+    int s = v;
+    if (s > -8 && s < 8) s = 0;
+    if (s > 80) s = 80;
+    if (s < -80) s = -80;
+    return (int16_t)((s * 256) / 80);
+}
 
-    if (held.d_right || held.c_right) in->paddle_dir = 1;
-    else if (held.d_left || held.c_left) in->paddle_dir = -1;
-    else in->paddle_dir = 0;
-
-    if (pressed.a) in->launch = true;
-    if (pressed.a || pressed.b) in->confirm = true;
-    if (pressed.start) in->pause = true;
+/* Levels every frame; edges OR-ed in and cleared by the caller after a tick. */
+static void read_port(joypad_port_t port, input_t *in) {
+    joypad_inputs_t inputs = joypad_get_inputs(port);
+    joypad_buttons_t held = joypad_get_buttons(port);
+    joypad_buttons_t pressed = joypad_get_buttons_pressed(port);
+    in->stick_x = axis(inputs.stick_x);
+    in->stick_y = axis(inputs.stick_y);
+    in->dpad_x = (held.d_right || held.c_right) ? 1 : (held.d_left || held.c_left) ? -1 : 0;
+    in->dpad_y = (held.d_up || held.c_up) ? 1 : (held.d_down || held.c_down) ? -1 : 0;
+    if (pressed.a) in->a = true;
+    if (pressed.b) in->b = true;
+    if (pressed.z) in->z = true;
+    in->a_held = held.a;
+    in->b_held = held.b;
 }
 #endif
 
-static void render(const brick_game_t *g) {
-    surface_t *fb = display_get();
-    rdpq_attach(fb, NULL);
-
-    rdpq_set_mode_fill(rgb(BRICK_COLOR_BG));
-    rdpq_fill_rectangle(0, 0, BRICK_SCREEN_W, BRICK_SCREEN_H);
-
-    if (g->state != BRICK_ST_TITLE) {
-        for (int r = 0; r < BRICK_ROWS; r++) {
-            rdpq_set_fill_color(rgb(brick_row_color(r)));
-            for (int c = 0; c < BRICK_COLS; c++)
-                if (g->cells[r][c]) fill(brick_cell_rect(r, c));
-        }
-        rdpq_set_fill_color(rgb(BRICK_COLOR_PADDLE));
-        fill(brick_paddle_rect(g));
-        if (g->state != BRICK_ST_GAMEOVER) {
-            rdpq_set_fill_color(rgb(BRICK_COLOR_BALL));
-            fill(brick_ball_rect(g));
-        }
-    }
-
-    rdpq_set_mode_standard();
-    rdpq_textparms_t left = { .width = 0, .align = ALIGN_LEFT };
-    rdpq_textparms_t center = { .width = BRICK_SCREEN_W, .align = ALIGN_CENTER };
-    rdpq_textparms_t right = { .width = BRICK_PLAY_X1, .align = ALIGN_RIGHT };
-
-    if (g->state == BRICK_ST_TITLE) {
-        rdpq_text_printf(&center, FONT_BIG, 0, 100, "BRICK");
-        rdpq_text_printf(&center, FONT_BIG, 0, 130, "HIGH SCORE %d", g->high_score);
-        rdpq_text_printf(&center, FONT_BIG, 0, 160, "PRESS A");
-    } else {
-        rdpq_text_printf(&left, FONT_HUD, BRICK_PLAY_X0, 26, "SCORE %d", g->score);
-        rdpq_text_printf(&center, FONT_HUD, 0, 26, "LIVES %d", g->lives);
-        rdpq_text_printf(&right, FONT_HUD, 0, 26, "LV %d", g->level);
-        if (g->state == BRICK_ST_PAUSE) {
-            rdpq_text_printf(&center, FONT_BIG, 0, 160, "PAUSED");
-        } else if (g->state == BRICK_ST_GAMEOVER) {
-            rdpq_text_printf(&center, FONT_BIG, 0, 140, "GAME OVER");
-            rdpq_text_printf(&center, FONT_BIG, 0, 168, "HIGH SCORE %d", g->high_score);
-            rdpq_text_printf(&center, FONT_BIG, 0, 196, "PRESS A");
-        }
-    }
-
-    rdpq_detach_show();
-}
+static void clear_edges(input_t *in) { in->a = in->b = in->z = false; }
 
 int main(void) {
     dfs_init(DFS_DEFAULT_LOCATION);
@@ -98,38 +69,63 @@ int main(void) {
 
     rdpq_font_t *hud = rdpq_font_load("rom:/hud.font64");
     rdpq_font_t *big = rdpq_font_load("rom:/big.font64");
-    rdpq_font_style(hud, 0, &(rdpq_fontstyle_t){ .color = rgb(BRICK_COLOR_TEXT) });
-    rdpq_font_style(big, 0, &(rdpq_fontstyle_t){ .color = rgb(BRICK_COLOR_TEXT) });
-    rdpq_text_register_font(FONT_HUD, hud);
-    rdpq_text_register_font(FONT_BIG, big);
+    rdpq_font_style(hud, 0, &(rdpq_fontstyle_t){ .color = rgb(DRAW_TEXT_DARK) });
+    rdpq_font_style(big, 0, &(rdpq_fontstyle_t){ .color = rgb(DRAW_TEXT_DARK) });
+    rdpq_font_style(hud, 1, &(rdpq_fontstyle_t){ .color = rgb(DRAW_TEXT_LIGHT) });
+    rdpq_font_style(big, 1, &(rdpq_fontstyle_t){ .color = rgb(DRAW_TEXT_LIGHT) });
+    rdpq_text_register_font(DRAW_FONT_HUD, hud);
+    rdpq_text_register_font(DRAW_FONT_BIG, big);
 
-    brick_game_t game;
-    brick_init(&game);
-    brick_input_t in = {0};
+#ifdef AUTOPLAY_GAME
+    int gi = game_index_by_name(AUTOPLAY_GAME);
+    if (gi < 0) gi = 0;
+    const game_desc_t *game = GAMES[gi];
+#else
+    const game_desc_t *game = GAMES[0];
+#endif
+    void *state = game->state;
+    game->init(state);
+    game->set_high_score(state, 0);
+    game->start(state, (uint32_t)get_ticks() | 1u);
+
+    input_t in[GAME_MAX_PLAYERS] = {0};
+    bool start_pressed = false;
 
     const int hz = (get_tv_type() == TV_PAL) ? 50 : 60;
     const uint64_t dt = TICKS_PER_SECOND / hz;
     uint64_t prev = get_ticks();
     uint64_t acc = 0;
+    enum { CATCHUP_MAX = 4 };
 
     while (1) {
         uint64_t now = get_ticks();
         acc += now - prev;
         prev = now;
-#ifndef BRICK_AUTOPLAY
-        read_input(&in);
+#ifndef AUTOPLAY_GAME
+        joypad_poll();
+        read_port(JOYPAD_PORT_1, &in[0]);
+        read_port(JOYPAD_PORT_2, &in[1]);
+        if (joypad_get_buttons_pressed(JOYPAD_PORT_1).start) start_pressed = true;
 #endif
         int steps = 0;
-        while (acc >= dt && steps < BRICK_CATCHUP_MAX) {
-#ifdef BRICK_AUTOPLAY
-            brick_autoplay_input(&game, &in);
+        while (acc >= dt && steps < CATCHUP_MAX) {
+#ifdef AUTOPLAY_GAME
+            game->autoplay(state, in);
 #endif
-            brick_update(&game, &in);
-            in.launch = in.confirm = in.pause = false;
+            game->update(state, in);
+            clear_edges(&in[0]);
+            clear_edges(&in[1]);
+            start_pressed = false;
             acc -= dt;
             steps++;
         }
-        if (steps == BRICK_CATCHUP_MAX) acc = 0;   /* drop the backlog after a stall */
-        render(&game);
+        (void)start_pressed;                 /* latched for Task 2 */
+        if (steps == CATCHUP_MAX) acc = 0;   /* drop the backlog after a stall */
+
+        surface_t *fb = display_get();
+        rdpq_attach(fb, NULL);
+        rdpq_set_mode_fill(rgb(COLOR_BG));
+        game->render(state, &n64_draw);
+        rdpq_detach_show();
     }
 }
