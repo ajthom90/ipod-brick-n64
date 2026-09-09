@@ -46,16 +46,21 @@ static void test_menu_nav_and_repeat(void) {
     CHECK(a.repeat_ticks == 8);
     CHECK(app_next_sfx(&a) == SFX_MENU_MOVE);
 
-    /* Then every 8 ticks. */
-    for (int i = 0; i < 7; i++) {
+    /* Then every 8 ticks until SETTINGS. */
+    int row = 2;
+    for (;;) {
+        for (int i = 0; i < 7; i++) {
+            app_update(&a, in, false, 1);
+            CHECK(a.menu_row == row);
+            CHECK(a.repeat_ticks == 7 - i);
+        }
         app_update(&a, in, false, 1);
-        CHECK(a.menu_row == 2);
-        CHECK(a.repeat_ticks == 7 - i);
+        row++;
+        CHECK(a.menu_row == row);
+        CHECK(a.repeat_ticks == 8);
+        CHECK(app_next_sfx(&a) == SFX_MENU_MOVE);
+        if (row == GAME_COUNT) break;
     }
-    app_update(&a, in, false, 1);
-    CHECK(a.menu_row == GAME_COUNT);
-    CHECK(a.repeat_ticks == 8);
-    CHECK(app_next_sfx(&a) == SFX_MENU_MOVE);
 
     /* Clamp at GAME_COUNT while holding down. */
     for (int i = 0; i < 20; i++) app_update(&a, in, false, 1);
@@ -69,7 +74,7 @@ static void test_menu_nav_and_repeat(void) {
     app_update(&a, in, false, 1);
     CHECK(a.menu_row == GAME_COUNT - 1);
     CHECK(app_next_sfx(&a) == SFX_MENU_MOVE);
-    for (int i = 0; i < 30; i++) app_update(&a, in, false, 1);
+    for (int i = 0; i < 18 + 8 * GAME_COUNT; i++) app_update(&a, in, false, 1);
     CHECK(a.menu_row == 0);
 
     /* stick_y = -200 behaves like the D-pad (down). */
