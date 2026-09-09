@@ -40,33 +40,34 @@ static void test_menu_nav_and_repeat(void) {
         CHECK(app_next_sfx(&a) == SFX_NONE);
     }
 
-    /* A move on the 18th (clamped at SETTINGS with one registered game). */
+    /* A move on the 18th (next row; SETTINGS when only one game is registered). */
     app_update(&a, in, false, 1);
-    CHECK(a.menu_row == GAME_COUNT);
+    CHECK(a.menu_row == 2);
     CHECK(a.repeat_ticks == 8);
-    CHECK(app_next_sfx(&a) == SFX_NONE);
+    CHECK(app_next_sfx(&a) == SFX_MENU_MOVE);
 
     /* Then every 8 ticks. */
     for (int i = 0; i < 7; i++) {
         app_update(&a, in, false, 1);
-        CHECK(a.menu_row == GAME_COUNT);
+        CHECK(a.menu_row == 2);
         CHECK(a.repeat_ticks == 7 - i);
     }
     app_update(&a, in, false, 1);
     CHECK(a.menu_row == GAME_COUNT);
     CHECK(a.repeat_ticks == 8);
+    CHECK(app_next_sfx(&a) == SFX_NONE);
 
     /* Clamp at GAME_COUNT while holding down. */
     for (int i = 0; i < 20; i++) app_update(&a, in, false, 1);
     CHECK(a.menu_row == GAME_COUNT);
 
-    /* Clamp at 0: release, move up to Brick, keep holding up. */
+    /* Clamp at 0: release, move up toward Brick, keep holding up. */
     zero_in(in);
     app_update(&a, in, false, 1);
     drain_sfx(&a);
     in[0].dpad_y = 1;
     app_update(&a, in, false, 1);
-    CHECK(a.menu_row == 0);
+    CHECK(a.menu_row == GAME_COUNT - 1);
     CHECK(app_next_sfx(&a) == SFX_MENU_MOVE);
     for (int i = 0; i < 30; i++) app_update(&a, in, false, 1);
     CHECK(a.menu_row == 0);
@@ -149,8 +150,13 @@ static void test_settings_placeholder(void) {
     app_init(&a, false, 0);
     input_t in[GAME_MAX_PLAYERS];
     zero_in(in);
-    in[0].dpad_y = -1;
-    app_update(&a, in, false, 1);
+    for (int step = 0; step < GAME_COUNT; step++) {
+        zero_in(in);
+        in[0].dpad_y = -1;
+        app_update(&a, in, false, 1);
+        zero_in(in);
+        app_update(&a, in, false, 1);
+    }
     CHECK(a.menu_row == GAME_COUNT);
     drain_sfx(&a);
 
