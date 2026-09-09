@@ -101,13 +101,12 @@ static int dump_menu(const char *dir) {
 static int dump_settings(const char *dir) {
     app_t app;
     app_init(&app, false, 0);
+    app.menu_row = GAME_COUNT;
     input_t in[GAME_MAX_PLAYERS];
-    memset(in, 0, sizeof in);
-    in[0].dpad_y = -1;
-    app_update(&app, in, false, 0x1234567u);
     memset(in, 0, sizeof in);
     in[0].a = true;
     app_update(&app, in, false, 0x1234567u);
+    in[0].a = false;
     app_render(&app, &host_draw);
     save(dir, "frame-0000.ppm", 0, 0);
     return 0;
