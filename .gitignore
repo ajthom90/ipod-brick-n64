@@ -2,3 +2,4 @@ build/
 *.z64
 filesystem/
 .DS_Store
+*.eeprom
