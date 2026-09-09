@@ -55,7 +55,7 @@ static void test_menu_nav_and_repeat(void) {
     app_update(&a, in, false, 1);
     CHECK(a.menu_row == GAME_COUNT);
     CHECK(a.repeat_ticks == 8);
-    CHECK(app_next_sfx(&a) == SFX_NONE);
+    CHECK(app_next_sfx(&a) == SFX_MENU_MOVE);
 
     /* Clamp at GAME_COUNT while holding down. */
     for (int i = 0; i < 20; i++) app_update(&a, in, false, 1);

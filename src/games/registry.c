@@ -1,9 +1,10 @@
 #include "registry.h"
 #include "brick.h"
 #include "blocks.h"
+#include "snake.h"
 
-const game_desc_t *const GAMES[] = { &GAME_BRICK, &GAME_BLOCKS };
-const int GAME_COUNT = 2;
+const game_desc_t *const GAMES[] = { &GAME_BRICK, &GAME_BLOCKS, &GAME_SNAKE };
+const int GAME_COUNT = 3;
 
 static int icmp(const char *a, const char *b) {
     for (;;) {
