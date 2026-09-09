@@ -11,3 +11,5 @@ Checked:
 Process findings:
 - Grok's own `scripts/ares-shot.sh` runs failed with "could not create image from window" in its session, and it fell back to full-display screenshots saved under `build/shots/`. Those files were deleted by the reviewer. New standing rule for every Grok prompt: never capture the screen by any means other than `scripts/ares-shot.sh`; if it fails, report and continue.
 - `settings.c` keeps key-repeat timers in file-static variables to keep `settings_screen_t` as specified; acceptable, noted.
+
+Update 2026-09-09: the user confirmed by hand in ares that the menu tune, the Brick tune, and the brick-hit effect play, and that a volume change survived quitting and relaunching. Task 4 fully closed.
