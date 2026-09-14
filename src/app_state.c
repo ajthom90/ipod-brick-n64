@@ -40,6 +40,7 @@ static void update_menu(app_t *a, const input_t *in, uint32_t seed) {
     int8_t nav = menu_nav(in);
     if (menu_apply_nav(&a->menu_row, 0, GAME_COUNT, &a->repeat_ticks, &a->last_nav, nav)) {
         sfx_push(&a->sfx, SFX_MENU_MOVE);
+        a->menu_scroll = menu_scroll_for(a->menu_row, a->menu_scroll, GAME_COUNT + 1, MENU_VISIBLE_ROWS);
     }
     if (in->a) {
         sfx_push(&a->sfx, SFX_MENU_SELECT);
@@ -142,7 +143,7 @@ void app_render(const app_t *a, const draw_t *d) {
     const game_desc_t *g;
     switch (a->screen) {
     case APP_MENU:
-        menu_draw_games(d, a->menu_row);
+        menu_draw_games(d, a->menu_row, a->menu_scroll);
         break;
     case APP_SETTINGS:
         settings_screen_render(&a->settings_screen, d);

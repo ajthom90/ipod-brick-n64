@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include "settings.h"
 
-enum { SAVE_SIZE = 64, SAVE_MAGIC = 0x42524B31u, SAVE_VERSION = 1, SAVE_MAX_GAMES = 8 };
+enum { SAVE_SIZE = 64, SAVE_MAGIC = 0x42524B31u, SAVE_VERSION = 2, SAVE_MAX_GAMES = 12 };
 typedef struct { settings_t settings; int32_t high_scores[SAVE_MAX_GAMES]; } save_t;
 void save_defaults(save_t *s);
 void save_encode(const save_t *s, uint8_t out[SAVE_SIZE]);          /* big-endian fields, CRC32 (IEEE, poly 0xEDB88320) over bytes 0..59 stored at 60..63 */

@@ -55,7 +55,11 @@ static void test_header_after_note_fails(void) {
 }
 
 static void test_all_tracks_parse_equal_lengths(void) {
+    CHECK(MUSIC_TRACK_COUNT == 10);
     CHECK(MUSIC_SRC[MUSIC_MENU].bpm == 100);
+    CHECK(MUSIC_SRC[MUSIC_HOPPER].bpm == 125);
+    CHECK(MUSIC_SRC[MUSIC_FLAP].bpm == 115);
+    CHECK(MUSIC_SRC[MUSIC_RUNNER].bpm == 160);
     for (int i = 0; i < MUSIC_TRACK_COUNT; i++) {
         music_track_t tr;
         char err[128];

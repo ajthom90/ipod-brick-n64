@@ -9,6 +9,7 @@ typedef struct {
     app_screen_t screen;
     int game_index;            /* active or last active game */
     int menu_row;              /* 0..GAME_COUNT (last row = SETTINGS) */
+    int menu_scroll;           /* index of first visible menu row */
     int pause_row;             /* 0 = RESUME, 1 = QUIT TO MENU */
     int repeat_ticks;          /* key-repeat timer for menu navigation */
     int8_t last_nav;           /* last vertical direction held, for repeat */

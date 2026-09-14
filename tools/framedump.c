@@ -85,11 +85,12 @@ static int dump_menu(const char *dir) {
     app_init(&app, false, 0);
     input_t in[GAME_MAX_PLAYERS];
     char name[64];
-    for (int t = 0; t <= 60; t++) {
-        if (t % 30 == 0) {
+    for (int t = 0; t <= 300; t++) {
+        if ((t % 30 == 0 && t <= 60) || t == 300) {
             app_render(&app, &host_draw);
             snprintf(name, sizeof name, "frame-%04d.ppm", t);
             save(dir, name, t, 0);
+            if (t == 300) break;
         }
         memset(in, 0, sizeof in);
         in[0].dpad_y = -1;

@@ -55,7 +55,14 @@ bool save_decode(const uint8_t in[SAVE_SIZE], save_t *out) {
     uint32_t magic = get_be32(in + 0);
     uint16_t version = get_be16(in + 4);
     uint32_t crc = get_be32(in + 60);
-    if (magic != SAVE_MAGIC || version != SAVE_VERSION || crc != save_crc32(in, 60)) {
+    if (magic != SAVE_MAGIC || crc != save_crc32(in, 60)) {
+        save_defaults(out);
+        return false;
+    }
+    int nscores;
+    if (version == 1) nscores = 8;
+    else if (version == 2) nscores = 12;
+    else {
         save_defaults(out);
         return false;
     }
@@ -65,7 +72,8 @@ bool save_decode(const uint8_t in[SAVE_SIZE], save_t *out) {
     if (vol > 10) vol = 10;
     out->settings.volume = vol;
     for (int i = 0; i < SAVE_MAX_GAMES; i++) {
-        out->high_scores[i] = (int32_t)get_be32(in + 9 + i * 4);
+        if (i < nscores) out->high_scores[i] = (int32_t)get_be32(in + 9 + i * 4);
+        else out->high_scores[i] = 0;
     }
     return true;
 }

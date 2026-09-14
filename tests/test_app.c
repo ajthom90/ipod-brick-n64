@@ -1,5 +1,6 @@
 #include "harness.h"
 #include "app_state.h"
+#include "menu.h"
 #include "games/brick.h"
 #include "games/registry.h"
 
@@ -16,6 +17,7 @@ static void test_init_is_menu(void) {
     app_init(&a, false, 0);
     CHECK(a.screen == APP_MENU);
     CHECK(a.menu_row == 0);
+    CHECK(a.menu_scroll == 0);
     CHECK(app_track(&a) == MUSIC_MENU);
 }
 
@@ -302,6 +304,89 @@ static void test_next_sfx_framework_then_game(void) {
     CHECK(app_next_sfx(&a) == SFX_NONE);
 }
 
+static void test_menu_scroll_for_window(void) {
+    CHECK(menu_scroll_for(0, 0, 10, 7) == 0);
+    CHECK(menu_scroll_for(6, 0, 10, 7) == 0);
+    CHECK(menu_scroll_for(7, 0, 10, 7) == 1);
+    CHECK(menu_scroll_for(9, 1, 10, 7) == 3);
+    CHECK(menu_scroll_for(2, 3, 10, 7) == 2);
+    CHECK(menu_scroll_for(5, 0, 5, 7) == 0);
+}
+
+static void test_menu_scroll_follows_highlight(void) {
+    app_t a;
+    app_init(&a, false, 0);
+    CHECK(a.menu_scroll == 0);
+    input_t in[GAME_MAX_PLAYERS];
+    zero_in(in);
+    in[0].dpad_y = -1;
+    for (int i = 0; i < 400; i++) {
+        app_update(&a, in, false, 1);
+        if (a.menu_row == GAME_COUNT) break;
+    }
+    CHECK(a.menu_row == GAME_COUNT);
+    int expected = GAME_COUNT + 1 - 7;
+    if (expected < 0) expected = 0;
+    CHECK(a.menu_scroll == expected);
+}
+
+typedef struct {
+    int x0, y0, x1, y1;
+    uint32_t rgb;
+} rec_rect_t;
+
+typedef struct {
+    rec_rect_t rects[64];
+    int n;
+} rec_t;
+
+static void rec_rect(void *ctx, int x0, int y0, int x1, int y1, uint32_t rgb) {
+    rec_t *r = ctx;
+    if (r->n >= 64) return;
+    r->rects[r->n].x0 = x0;
+    r->rects[r->n].y0 = y0;
+    r->rects[r->n].x1 = x1;
+    r->rects[r->n].y1 = y1;
+    r->rects[r->n].rgb = rgb;
+    r->n++;
+}
+
+static void rec_text(void *ctx, draw_font_t font, draw_align_t align, int x, int y,
+                     uint32_t rgb, const char *utf8) {
+    (void)ctx; (void)font; (void)align; (void)x; (void)y; (void)rgb; (void)utf8;
+}
+
+static void test_real_menu_has_no_scrollbar(void) {
+    app_t a;
+    app_init(&a, false, 0);
+    rec_t rec;
+    memset(&rec, 0, sizeof rec);
+    draw_t d = { .ctx = &rec, .rect = rec_rect, .text = rec_text };
+    app_render(&a, &d);
+    for (int i = 0; i < rec.n; i++) {
+        CHECK(!(rec.rects[i].x0 >= 296 && rec.rects[i].x0 < 304));
+    }
+}
+
+static void test_scrollbar_geometry_synthetic(void) {
+    static const char *const labels[10] = {
+        "A", "B", "C", "D", "E", "F", "G", "H", "I", "J"
+    };
+    rec_t rec;
+    memset(&rec, 0, sizeof rec);
+    draw_t d = { .ctx = &rec, .rect = rec_rect, .text = rec_text };
+    menu_render_rows(&d, labels, 10, 9, 3);
+    int found = 0;
+    for (int i = 0; i < rec.n; i++) {
+        if (rec.rects[i].x0 == 297 && rec.rects[i].x1 == 303
+            && rec.rects[i].y0 == 95 && rec.rects[i].y1 == 215
+            && rec.rects[i].rgb == COLOR_DARK) {
+            found = 1;
+        }
+    }
+    CHECK(found);
+}
+
 int main(void) {
     RUN(test_init_is_menu);
     RUN(test_menu_nav_and_repeat);
@@ -313,5 +398,9 @@ int main(void) {
     RUN(test_autoplay_boots_into_game);
     RUN(test_game_over_sets_high_score_dirty_once);
     RUN(test_next_sfx_framework_then_game);
+    RUN(test_menu_scroll_for_window);
+    RUN(test_menu_scroll_follows_highlight);
+    RUN(test_real_menu_has_no_scrollbar);
+    RUN(test_scrollbar_geometry_synthetic);
     HARNESS_MAIN_END();
 }

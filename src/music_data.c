@@ -141,6 +141,58 @@ static const char *const G2048_NOISE =
     "-:4 H:2 -:2 -:4 H:2 -:2 | -:4 H:2 -:2 -:4 H:2 -:2 | -:4 H:2 -:2 -:4 H:2 -:2 | -:4 H:2 -:2 -:4 H:2 -:2 | "
     "-:4 H:2 -:2 -:4 H:2 -:2 | -:4 H:2 -:2 -:4 H:2 -:2 | -:4 H:2 -:2 -:4 H:2 -:2 | -:4 H:2 -:2 -:4 O:2 -:2";
 
+/* HOPPER: 125 BPM, G major, bouncy. Chords G | C | G | D | G | C | Em | D. */
+static const char *const HOPPER_P1 =
+    "duty=50 gain=60 decay=3 sustain=50 "
+    "G4:2 B4:2 D5:4 B4:2 G4:2 A4:4 | C5:4 E5:2 C5:2 A4:4 G4:4 | G4:2 B4:2 D5:4 G5:2 D5:2 B4:4 | A4:4 F#4:2 A4:2 D5:8 | "
+    "D5:2 B4:2 G4:4 B4:2 D5:2 G5:4 | E5:4 C5:2 E5:2 G5:4 E5:4 | E5:2 D5:2 B4:4 G4:2 B4:2 E5:4 | D5:4 C5:2 A4:2 F#4:4 D4:4";
+static const char *const HOPPER_P2 =
+    "duty=25 gain=38 decay=1 sustain=40 "
+    "-:2 D4:2 -:2 D4:2 -:2 D4:2 -:2 D4:2 | -:2 E4:2 -:2 E4:2 -:2 E4:2 -:2 E4:2 | -:2 D4:2 -:2 D4:2 -:2 D4:2 -:2 D4:2 | -:2 F#4:2 -:2 F#4:2 -:2 F#4:2 -:2 F#4:2 | "
+    "-:2 D4:2 -:2 D4:2 -:2 D4:2 -:2 D4:2 | -:2 E4:2 -:2 E4:2 -:2 E4:2 -:2 E4:2 | -:2 G4:2 -:2 G4:2 -:2 G4:2 -:2 G4:2 | -:2 F#4:2 -:2 F#4:2 -:2 F#4:2 -:2 F#4:2";
+static const char *const HOPPER_TRI =
+    "gain=75 "
+    "G2:2 G3:2 G2:2 G3:2 G2:2 G3:2 G2:2 G3:2 | C2:2 C3:2 C2:2 C3:2 C2:2 C3:2 C2:2 C3:2 | G2:2 G3:2 G2:2 G3:2 G2:2 G3:2 G2:2 G3:2 | D2:2 D3:2 D2:2 D3:2 D2:2 D3:2 D2:2 D3:2 | "
+    "G2:2 G3:2 G2:2 G3:2 G2:2 G3:2 G2:2 G3:2 | C2:2 C3:2 C2:2 C3:2 C2:2 C3:2 C2:2 C3:2 | E2:2 E3:2 E2:2 E3:2 E2:2 E3:2 E2:2 E3:2 | D2:2 D3:2 D2:2 D3:2 D2:2 D3:2 D2:2 D3:2";
+static const char *const HOPPER_NOISE =
+    "gain=40 "
+    "K:2 H:2 S:2 H:2 K:2 H:2 S:2 H:2 | K:2 H:2 S:2 H:2 K:2 H:2 S:2 H:2 | K:2 H:2 S:2 H:2 K:2 H:2 S:2 H:2 | K:2 H:2 S:2 H:2 K:2 H:2 S:2 H:2 | "
+    "K:2 H:2 S:2 H:2 K:2 H:2 S:2 H:2 | K:2 H:2 S:2 H:2 K:2 H:2 S:2 H:2 | K:2 H:2 S:2 H:2 K:2 H:2 S:2 H:2 | K:2 H:2 S:2 H:2 K:2 H:2 S:2 H:2";
+
+/* FLAP: 115 BPM, F major, dotted rhythm, cheeky. Chords F | Bb | F | C | F | Bb | C | F. */
+static const char *const FLAP_P1 =
+    "duty=25 gain=60 decay=2 sustain=50 "
+    "F4:3 A4:1 C5:3 A4:1 F4:3 G4:1 A4:4 | A#4:3 D5:1 F5:3 D5:1 A#4:3 C5:1 D5:4 | C5:3 A4:1 F4:3 A4:1 C5:3 D5:1 C5:4 | E4:3 G4:1 A#4:3 G4:1 E4:3 G4:1 C5:4 | "
+    "F5:3 C5:1 A4:3 C5:1 F5:3 E5:1 F5:4 | D5:3 A#4:1 F4:3 A#4:1 D5:3 C5:1 D5:4 | G4:3 E4:1 C4:3 E4:1 G4:3 A#4:1 G4:4 | A4:3 F4:1 C4:3 F4:1 A4:3 G4:1 F4:4";
+static const char *const FLAP_P2 =
+    "duty=12 gain=35 "
+    "A3:8 C4:8 | D4:8 F4:8 | A3:8 C4:8 | E4:8 G4:8 | A3:8 C4:8 | D4:8 F4:8 | E4:8 G4:8 | A3:8 C4:8";
+static const char *const FLAP_TRI =
+    "gain=75 "
+    "F2:4 A2:4 C3:4 A2:4 | A#2:4 D3:4 F3:4 D3:4 | F2:4 A2:4 C3:4 A2:4 | C3:4 E3:4 G3:4 E3:4 | F2:4 A2:4 C3:4 A2:4 | A#2:4 D3:4 F3:4 D3:4 | C3:4 E3:4 G3:4 E3:4 | F2:4 A2:4 C3:4 A2:4";
+static const char *const FLAP_NOISE =
+    "gain=35 "
+    "K:3 H:1 S:2 H:2 K:2 H:2 S:3 H:1 | K:3 H:1 S:2 H:2 K:2 H:2 S:3 H:1 | K:3 H:1 S:2 H:2 K:2 H:2 S:3 H:1 | K:3 H:1 S:2 H:2 K:2 H:2 S:3 H:1 | "
+    "K:3 H:1 S:2 H:2 K:2 H:2 S:3 H:1 | K:3 H:1 S:2 H:2 K:2 H:2 S:3 H:1 | K:3 H:1 S:2 H:2 K:2 H:2 S:3 H:1 | K:3 H:1 S:2 H:2 K:2 H:2 S:3 H:1";
+
+/* RUNNER: 160 BPM, A minor, driving. Chords Am | Am | F | G | Am | Am | F | E. */
+static const char *const RUNNER_P1 =
+    "duty=50 gain=62 decay=2 sustain=55 "
+    "A4:2 A4:2 C5:2 A4:2 E5:2 C5:2 A4:2 G4:2 | A4:2 C5:2 E5:2 G5:2 E5:2 C5:2 A4:4 | F4:2 A4:2 C5:2 F5:2 C5:2 A4:2 F4:2 A4:2 | G4:2 B4:2 D5:2 G5:2 D5:2 B4:2 G4:4 | "
+    "E5:2 E5:2 C5:2 E5:2 A5:2 E5:2 C5:2 A4:2 | A4:2 C5:2 E5:2 A5:2 G5:2 E5:2 C5:4 | F5:2 E5:2 C5:2 A4:2 F5:2 E5:2 C5:2 A4:2 | G#4:2 B4:2 E5:2 G#5:2 E5:2 B4:2 G#4:4";
+static const char *const RUNNER_P2 =
+    "duty=25 gain=36 decay=1 sustain=50 "
+    "A3:2 E4:2 A3:2 E4:2 A3:2 E4:2 A3:2 E4:2 | A3:2 E4:2 A3:2 E4:2 A3:2 E4:2 A3:2 E4:2 | F3:2 C4:2 F3:2 C4:2 F3:2 C4:2 F3:2 C4:2 | G3:2 D4:2 G3:2 D4:2 G3:2 D4:2 G3:2 D4:2 | "
+    "A3:2 E4:2 A3:2 E4:2 A3:2 E4:2 A3:2 E4:2 | A3:2 E4:2 A3:2 E4:2 A3:2 E4:2 A3:2 E4:2 | F3:2 C4:2 F3:2 C4:2 F3:2 C4:2 F3:2 C4:2 | E3:2 B3:2 E3:2 B3:2 E3:2 B3:2 E3:2 B3:2";
+static const char *const RUNNER_TRI =
+    "gain=80 "
+    "A2:2 A2:2 A3:2 A2:2 A2:2 A2:2 A3:2 A2:2 | A2:2 A2:2 A3:2 A2:2 A2:2 A2:2 A3:2 A2:2 | F2:2 F2:2 F3:2 F2:2 F2:2 F2:2 F3:2 F2:2 | G2:2 G2:2 G3:2 G2:2 G2:2 G2:2 G3:2 G2:2 | "
+    "A2:2 A2:2 A3:2 A2:2 A2:2 A2:2 A3:2 A2:2 | A2:2 A2:2 A3:2 A2:2 A2:2 A2:2 A3:2 A2:2 | F2:2 F2:2 F3:2 F2:2 F2:2 F2:2 F3:2 F2:2 | E2:2 E2:2 E3:2 E2:2 E2:2 E2:2 E3:2 E2:2";
+static const char *const RUNNER_NOISE =
+    "gain=45 "
+    "K:2 H:2 K:2 S:2 K:2 H:2 K:2 S:2 | K:2 H:2 K:2 S:2 K:2 H:2 K:2 S:2 | K:2 H:2 K:2 S:2 K:2 H:2 K:2 S:2 | K:2 H:2 K:2 S:2 K:2 H:2 K:2 S:2 | "
+    "K:2 H:2 K:2 S:2 K:2 H:2 K:2 S:2 | K:2 H:2 K:2 S:2 K:2 H:2 K:2 S:2 | K:2 H:2 K:2 S:2 K:2 H:2 K:2 S:2 | K:2 H:2 K:2 S:2 S:2 S:2 S:2 S:2";
+
 const music_src_t MUSIC_SRC[MUSIC_TRACK_COUNT] = {
     [MUSIC_MENU]      = { "menu",      100, { MENU_P1,   MENU_P2,   MENU_TRI,   MENU_NOISE } },
     [MUSIC_BRICK]     = { "brick",     130, { BRICK_P1,  BRICK_P2,  BRICK_TRI,  BRICK_NOISE } },
@@ -149,4 +201,7 @@ const music_src_t MUSIC_SRC[MUSIC_TRACK_COUNT] = {
     [MUSIC_PONG]      = { "pong",      110, { PONG_P1,   PONG_P2,   PONG_TRI,   PONG_NOISE } },
     [MUSIC_PARACHUTE] = { "parachute", 150, { PARA_P1,   PARA_P2,   PARA_TRI,   PARA_NOISE } },
     [MUSIC_2048]      = { "2048",      90,  { G2048_P1,  G2048_P2,  G2048_TRI,  G2048_NOISE } },
+    [MUSIC_HOPPER]    = { "hopper",    125, { HOPPER_P1, HOPPER_P2, HOPPER_TRI, HOPPER_NOISE } },
+    [MUSIC_FLAP]      = { "flap",      115, { FLAP_P1,   FLAP_P2,   FLAP_TRI,   FLAP_NOISE } },
+    [MUSIC_RUNNER]    = { "runner",    160, { RUNNER_P1, RUNNER_P2, RUNNER_TRI, RUNNER_NOISE } },
 };

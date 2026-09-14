@@ -45,7 +45,7 @@ static inline void draw_text(const draw_t *d, draw_font_t f, draw_align_t a, int
 void fmt_label(char *buf, size_t cap, const char *prefix, int value);
 void fmt_int(char *buf, size_t cap, int value);
 
-typedef enum { MUSIC_MENU = 0, MUSIC_BRICK, MUSIC_BLOCKS, MUSIC_SNAKE, MUSIC_PONG, MUSIC_PARACHUTE, MUSIC_2048, MUSIC_TRACK_COUNT } music_track_id_t;
+typedef enum { MUSIC_MENU = 0, MUSIC_BRICK, MUSIC_BLOCKS, MUSIC_SNAKE, MUSIC_PONG, MUSIC_PARACHUTE, MUSIC_2048, MUSIC_HOPPER, MUSIC_FLAP, MUSIC_RUNNER, MUSIC_TRACK_COUNT } music_track_id_t;
 
 typedef struct {
     const char *name;
