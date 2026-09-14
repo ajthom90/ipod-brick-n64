@@ -32,7 +32,11 @@ for SEC in "$@"; do
     pkill -x ares 2>/dev/null || true
     exit 1
   fi
-  screencapture -x -o -l "$WID" "$OUT/shot-${SEC}s.png"
+  if ! screencapture -x -o -l "$WID" "$OUT/shot-${SEC}s.png"; then
+    echo "capture failed at ${SEC}s (is Screen Recording permission granted?)" >&2
+    pkill -x ares 2>/dev/null || true
+    exit 1
+  fi
   echo "captured $OUT/shot-${SEC}s.png"
 done
 pkill -x ares 2>/dev/null || true

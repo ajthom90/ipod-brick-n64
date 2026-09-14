@@ -1,6 +1,6 @@
 # Retro Games for Nintendo 64
 
-A Nintendo 64 collection in the spirit of the iPod Games menu: six games, original chiptunes, and a Settings screen in one ROM. Brick is the Breakout-style game Steve Wozniak wrote for the iPod. The game cores are platform-independent C; a thin [libdragon](https://github.com/DragonMinded/libdragon) adapter draws them on the N64 and maps the controller. Play it in the [ares](https://ares-emu.net) emulator.
+A Nintendo 64 collection in the spirit of the iPod Games menu: nine games, original chiptunes, and a Settings screen in one ROM. Brick is the Breakout-style game Steve Wozniak wrote for the iPod. The game cores are platform-independent C; a thin [libdragon](https://github.com/DragonMinded/libdragon) adapter draws them on the N64 and maps the controller. Play it in the [ares](https://ares-emu.net) emulator.
 
 ## Games
 
@@ -10,6 +10,11 @@ A Nintendo 64 collection in the spirit of the iPod Games menu: six games, origin
 - **Pong** — one or two players; first to 11.
 - **Parachute** — shoot helicopters and paratroopers before they pile up; the iPod original.
 - **2048** — slide tiles, merge equals, reach 2048.
+- **Hopper** — bounce up platforms; springs and moving pads; wraps at the edges.
+- **Flap** — flap through gaps in oncoming pipes.
+- **Runner** — run and hop rooftops as the city speeds up.
+
+The games menu scrolls with a scrollbar when more than seven rows exist.
 
 ## Controls
 
@@ -21,6 +26,9 @@ A Nintendo 64 collection in the spirit of the iPod Games menu: six games, origin
 | Pong       | Stick or D-pad moves the paddle vertically                | A confirms mode and restart             | Port 2 is player 2; title chooses 1 PLAYER / 2 PLAYERS |
 | Parachute  | Stick or D-pad aims the turret                            | A fires; hold A to auto-fire            | Each shot costs 1 point                            |
 | 2048       | D-pad or stick slides tiles                               | A starts                                |                                                    |
+| Hopper     | Stick or D-pad steers                                     | A starts                                | Wraps at the edges                                 |
+| Flap       |                                                           | A flaps                                 |                                                    |
+| Runner     |                                                           | A jumps; release early for a short hop  |                                                    |
 
 Start opens the pause menu with RESUME and QUIT TO MENU. A confirms; up/down navigate. C-left / C-right / C-up / C-down alias the D-pad.
 
@@ -72,4 +80,4 @@ libdragon commit `c4a7e119eff1cfad07adcfa892a2910c40d8bdb8`. Base image digest `
 
 ## Trademark note
 
-Blocks is an original implementation of the falling-block genre and is not affiliated with or endorsed by the Tetris trademark holders.
+Blocks is an original implementation of the falling-block genre and is not affiliated with or endorsed by the Tetris trademark holders. Hopper, Flap, and Runner are original implementations of their genres and are not affiliated with or endorsed by the owners of Doodle Jump, Flappy Bird, or Canabalt.
