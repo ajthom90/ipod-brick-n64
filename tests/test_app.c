@@ -363,9 +363,24 @@ static void test_real_menu_has_no_scrollbar(void) {
     memset(&rec, 0, sizeof rec);
     draw_t d = { .ctx = &rec, .rect = rec_rect, .text = rec_text };
     app_render(&a, &d);
-    for (int i = 0; i < rec.n; i++) {
-        CHECK(!(rec.rects[i].x0 >= 296 && rec.rects[i].x0 < 304));
+    int total = GAME_COUNT + 1;
+    if (total <= MENU_VISIBLE_ROWS) {
+        for (int i = 0; i < rec.n; i++) {
+            CHECK(!(rec.rects[i].x0 >= 296 && rec.rects[i].x0 < 304));
+        }
+        return;
     }
+    int th = 172 * MENU_VISIBLE_ROWS / total;
+    int ty = 43 + (172 - th) * a.menu_scroll / (total - MENU_VISIBLE_ROWS);
+    int found = 0;
+    for (int i = 0; i < rec.n; i++) {
+        if (rec.rects[i].x0 == 297 && rec.rects[i].x1 == 303
+            && rec.rects[i].y0 == ty && rec.rects[i].y1 == ty + th
+            && rec.rects[i].rgb == COLOR_DARK) {
+            found = 1;
+        }
+    }
+    CHECK(found);
 }
 
 static void test_scrollbar_geometry_synthetic(void) {

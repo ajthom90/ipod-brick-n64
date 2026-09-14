@@ -5,9 +5,10 @@
 #include "pong.h"
 #include "parachute.h"
 #include "g2048.h"
+#include "hopper.h"
 
-const game_desc_t *const GAMES[] = { &GAME_BRICK, &GAME_BLOCKS, &GAME_SNAKE, &GAME_PONG, &GAME_PARACHUTE, &GAME_2048 };
-const int GAME_COUNT = 6;
+const game_desc_t *const GAMES[] = { &GAME_BRICK, &GAME_BLOCKS, &GAME_SNAKE, &GAME_PONG, &GAME_PARACHUTE, &GAME_2048, &GAME_HOPPER };
+const int GAME_COUNT = 7;
 
 static int icmp(const char *a, const char *b) {
     for (;;) {
