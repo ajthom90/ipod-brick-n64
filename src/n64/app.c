@@ -51,7 +51,8 @@ static void soft_text(void *ctx, draw_font_t font, draw_align_t align, int x, in
     surface_t *d = (surface_t*)ctx;
     int w = (int)strlen(s) * 8;
     int tx = (align == DRAW_CENTER) ? x - w/2 : (align == DRAW_RIGHT) ? x - w : x;
-    graphics_set_color(soft_col(c), soft_col(COLOR_BG));
+    uint32_t back = (c == DRAW_TEXT_LIGHT) ? COLOR_BLUE : COLOR_BG;
+    graphics_set_color(soft_col(c), soft_col(back));
     graphics_draw_text(d, tx, y - 7, s);
 }
 #endif
