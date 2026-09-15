@@ -68,11 +68,22 @@ Or open `games.z64` in ares yourself.
     make music                      # renders tunes and effects to build/music/*.wav
     make rom-autoplay GAME=<name>   # builds games-autoplay.z64, which plays itself
     make shots                      # captures games-autoplay.z64 in ares at 4, 8, and 15 seconds
+    make rom-soft                   # produces games-soft.z64 (CPU framebuffer, for Delta / HLE)
+    make rom-soft-autoplay GAME=<name>  # builds games-soft-autoplay.z64, which plays itself
+    make hle-shots GAME=<name>      # captures games-soft-autoplay.z64 under the HLE rig at 4, 8, and 15 seconds
     make rom DEBUG=1                # ROM with libdragon RDP validation; assertions appear on screen
+
+The HLE rig is built by `scripts/build-hle-rig.sh` (mupen64plus-core + GLideN64 from source) and window-captured by `scripts/hle-shot.sh`.
+
+## Delta and iOS
+
+`games-soft.z64` (built with `make rom-soft`) is the build for Delta and other high-level-emulation emulators. It renders on the CPU because HLE emulators cannot run libdragon's RSP microcode. It relies on GLideN64's framebuffer emulation, which is Delta's default, so no Delta settings change is needed. Text uses libdragon's built-in font, so it looks more retro than the Inter-based `games.z64`. The rdpq `games.z64` stays the build for ares and real hardware.
+
+Delta 1.7.6 crashed on a macOS 27 beta before loading any ROM. That is a Delta + OS-beta bug, unrelated to the ROM; prefer a non-beta iPad or iPhone.
 
 ## Verification note
 
-mupen64plus cannot boot libdragon ROMs, so ares is the only emulator used. Screenshots are captured by `scripts/ares-shot.sh`.
+The rdpq `games.z64` is verified in ares (`scripts/ares-shot.sh`). The software `games-soft.z64` is verified under mupen64plus + GLideN64 (`scripts/build-hle-rig.sh`, `scripts/hle-shot.sh`).
 
 ## Toolchain pin
 
