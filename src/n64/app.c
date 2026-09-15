@@ -6,6 +6,7 @@
 #include "../music.h"
 #include "../save.h"
 
+#ifndef SOFTRENDER
 static color_t rgb(uint32_t c) { return RGBA32((c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF, 0xFF); }
 
 static void n64_rect(void *ctx, int x0, int y0, int x1, int y1, uint32_t c) {
@@ -32,6 +33,28 @@ static void n64_text(void *ctx, draw_font_t font, draw_align_t align, int x, int
 }
 
 static const draw_t n64_draw = { .ctx = NULL, .rect = n64_rect, .text = n64_text };
+#endif
+
+#ifdef SOFTRENDER
+#include <string.h>
+static uint32_t soft_col(uint32_t c) { return graphics_make_color((c>>16)&0xFF,(c>>8)&0xFF,c&0xFF,0xFF); }
+static void soft_rect(void *ctx, int x0, int y0, int x1, int y1, uint32_t c) {
+    surface_t *d = (surface_t*)ctx;
+    if (x0 < 0) x0 = 0;
+    if (y0 < 0) y0 = 0;
+    if (x1 > SCREEN_W) x1 = SCREEN_W;
+    if (y1 > SCREEN_H) y1 = SCREEN_H;
+    if (x1 > x0 && y1 > y0) graphics_draw_box(d, x0, y0, x1 - x0, y1 - y0, soft_col(c));
+}
+static void soft_text(void *ctx, draw_font_t font, draw_align_t align, int x, int y, uint32_t c, const char *s) {
+    (void)font;
+    surface_t *d = (surface_t*)ctx;
+    int w = (int)strlen(s) * 8;
+    int tx = (align == DRAW_CENTER) ? x - w/2 : (align == DRAW_RIGHT) ? x - w : x;
+    graphics_set_color(soft_col(c), soft_col(COLOR_BG));
+    graphics_draw_text(d, tx, y - 7, s);
+}
+#endif
 
 static app_t app;
 static synth_t synth;
@@ -109,12 +132,17 @@ static void fill_audio(void) {
 }
 
 int main(void) {
+#ifdef SOFTRENDER
+    display_init(RESOLUTION_320x240, DEPTH_16_BPP, 2, GAMMA_NONE, FILTERS_RESAMPLE);
+    graphics_set_default_font();
+#else
     dfs_init(DFS_DEFAULT_LOCATION);
     /* FILTERS_DISABLED asserts at 320x240 16 bpp (hardware bug, libdragon display.c); resampling stays on. */
     display_init(RESOLUTION_320x240, DEPTH_16_BPP, 3, GAMMA_NONE, FILTERS_RESAMPLE);
     rdpq_init();
 #ifdef BRICK_DEBUG
     rdpq_debug_start();
+#endif
 #endif
     joypad_init();
 
@@ -135,6 +163,7 @@ int main(void) {
         } else have_eeprom = false;
     }
 
+#ifndef SOFTRENDER
     rdpq_font_t *hud = rdpq_font_load("rom:/hud.font64");
     rdpq_font_t *big = rdpq_font_load("rom:/big.font64");
     rdpq_font_style(hud, 0, &(rdpq_fontstyle_t){ .color = rgb(DRAW_TEXT_DARK) });
@@ -143,6 +172,7 @@ int main(void) {
     rdpq_font_style(big, 1, &(rdpq_fontstyle_t){ .color = rgb(DRAW_TEXT_LIGHT) });
     rdpq_text_register_font(DRAW_FONT_HUD, hud);
     rdpq_text_register_font(DRAW_FONT_BIG, big);
+#endif
 
 #ifdef AUTOPLAY_GAME
     int gi = game_index_by_name(AUTOPLAY_GAME);
@@ -188,9 +218,15 @@ int main(void) {
         fill_audio();
 
         surface_t *fb = display_get();
+#ifdef SOFTRENDER
+        draw_t soft_draw = { .ctx = fb, .rect = soft_rect, .text = soft_text };
+        app_render(&app, &soft_draw);
+        display_show(fb);
+#else
         rdpq_attach(fb, NULL);
         rdpq_set_mode_fill(rgb(COLOR_BG));
         app_render(&app, &n64_draw);
         rdpq_detach_show();
+#endif
     }
 }

@@ -10,7 +10,7 @@ GAME      ?= brick
 CORE_SRCS := $(wildcard src/*.c) $(wildcard src/games/*.c)
 TESTS     := $(patsubst tests/%.c,build/host/%,$(wildcard tests/test_*.c))
 
-.PHONY: test frames music image rom rom-autoplay run shots clean
+.PHONY: test frames music image rom rom-autoplay rom-soft rom-soft-autoplay hle-shots run shots clean
 
 test: $(TESTS)
 	@set -e; for t in $(TESTS); do echo "== $$t"; $$t; done
@@ -47,6 +47,15 @@ rom:
 rom-autoplay:
 	$(DOCKER_RUN) make rom-in-container ROMNAME=games-autoplay BUILD_DIR=build/autoplay AUTOPLAY=1 GAME=$(GAME)
 
+rom-soft:
+	$(DOCKER_RUN) make rom-in-container ROMNAME=games-soft BUILD_DIR=build/soft SOFTRENDER=1
+rom-soft-autoplay:
+	$(DOCKER_RUN) make rom-in-container ROMNAME=games-soft-autoplay BUILD_DIR=build/soft-auto SOFTRENDER=1 AUTOPLAY=1 GAME=$(GAME)
+hle-shots:
+	scripts/build-hle-rig.sh
+	$(MAKE) rom-soft-autoplay GAME=$(GAME)
+	scripts/hle-shot.sh games-soft-autoplay.z64 build/hle-shots 4 8 15
+
 run:
 	@test -f games.z64 || { echo "games.z64 missing: run make rom first"; exit 1; }
 	open -a ares --args --system "Nintendo 64" "$(CURDIR)/games.z64"
@@ -61,6 +70,9 @@ clean:
 ifdef N64_INST
 include $(N64_INST)/include/n64.mk
 N64_CFLAGS += -Isrc
+ifeq ($(SOFTRENDER),1)
+N64_CFLAGS += -DSOFTRENDER
+endif
 ifeq ($(AUTOPLAY),1)
 N64_CFLAGS += -DAUTOPLAY_GAME=\"$(GAME)\"
 endif
@@ -81,8 +93,10 @@ filesystem/big.font64: $(FONT_TTF)
 	$(N64_MKFONT) --size 22 --display 320x240 -o $(BUILD_DIR)/font-big "$<"
 	cp $(BUILD_DIR)/font-big/Inter-Bold.font64 $@
 
+ifneq ($(SOFTRENDER),1)
 $(BUILD_DIR)/$(ROMNAME).dfs: filesystem/hud.font64 filesystem/big.font64
 $(ROMNAME).z64: $(BUILD_DIR)/$(ROMNAME).dfs
+endif
 $(BUILD_DIR)/$(ROMNAME).elf: $(OBJS)
 N64_ROM_SAVETYPE = eeprom4k
 $(ROMNAME).z64: N64_ROM_TITLE = "Games"
